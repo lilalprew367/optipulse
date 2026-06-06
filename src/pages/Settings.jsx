@@ -73,12 +73,14 @@ export default function Settings() {
         <SettingSection icon={Send} title="Telegram Notifications" description="Get high-conviction trade alerts and daily briefings sent directly to your Telegram.">
           <div className="mt-3 space-y-3">
             <div className="text-xs text-muted-foreground bg-muted border border-border rounded p-3">
-              <b className="text-foreground">How to get your Chat ID:</b>
+              <b className="text-foreground">⚠️ Important: Get YOUR Chat ID (not the bot's)</b>
               <ol className="list-decimal list-inside mt-2 space-y-1">
-                <li>Open Telegram and search for <b className="text-primary">@userinfobot</b></li>
-                <li>Click Start and it will show your Chat ID</li>
-                <li>Copy the numeric ID and paste it below</li>
+                <li>Open Telegram and message <b className="text-primary">@userinfobot</b></li>
+                <li>Click <b>Start</b> - it will reply with your info</li>
+                <li>Copy the <b>Id</b> field (your personal Chat ID)</li>
+                <li>Paste it below (e.g., 123456789)</li>
               </ol>
+              <p className="mt-2 text-red-400"><b>⚠️ Do NOT use the bot's ID</b> - use YOUR own Chat ID from the response</p>
               <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2 text-primary text-xs hover:underline">
                 Open @userinfobot <ExternalLink className="w-3 h-3" />
               </a>

@@ -53,10 +53,21 @@ Deno.serve(async (req) => {
 
     if (!result.ok) {
       console.log('[Telegram] Error:', result);
+      
+      // Provide user-friendly error messages
+      let userMessage = 'Failed to send Telegram message';
+      if (result.error_code === 403 && result.description?.includes("bot can't send messages to the bot")) {
+        userMessage = 'Invalid Chat ID: You entered the bot\'s ID instead of your own. Message @userinfobot on Telegram and use YOUR Chat ID from the response.';
+      } else if (result.error_code === 400) {
+        userMessage = 'Invalid Chat ID: Please check your Chat ID from @userinfobot';
+      } else if (result.description) {
+        userMessage = `Telegram error: ${result.description}`;
+      }
+      
       return Response.json({ 
-        error: 'Failed to send Telegram message',
+        error: userMessage,
         details: result.description 
-      }, { status: 500 });
+      }, { status: 400 });
     }
 
     console.log('[Telegram] Message sent successfully to chat', telegramChatId);
