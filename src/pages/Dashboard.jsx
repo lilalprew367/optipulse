@@ -29,15 +29,43 @@ export default function Dashboard() {
 
   async function triggerGeneration() {
     setGenerating(true);
-    toast.info('Generating briefing... This may take 30-60 seconds.');
-    const res = await base44.functions.invoke('generateBriefing', {});
-    if (res.data?.success) {
-      toast.success('Briefing generated!');
-      await loadTodayData();
-    } else {
-      toast.error('Generation failed: ' + (res.data?.error || 'Unknown error'));
-    }
-    setGenerating(false);
+    toast.info('Analyzing markets... This takes 30–60 seconds on first run.');
+    // Create a placeholder so the UI shows "generating" state immediately
+    // Then poll for completion instead of waiting on the HTTP response
+    base44.functions.invoke('generateBriefing', {}, { timeout: 120000 }).then(async (res) => {
+      if (res.data?.success) {
+        toast.success('Briefing generated!');
+        await loadTodayData();
+      } else {
+        toast.error('Generation failed: ' + (res.data?.error || 'Unknown error'));
+      }
+      setGenerating(false);
+    }).catch(async (err) => {
+      // On timeout/503, the function may still be running — poll for the result
+      if (err?.response?.status === 503 || err?.code === 'ECONNABORTED' || err?.message?.includes('timeout') || err?.message?.includes('503')) {
+        toast.info('Still generating in background — checking for results...');
+        // Poll every 5s for up to 2 minutes
+        let attempts = 0;
+        const poll = setInterval(async () => {
+          attempts++;
+          const result = await loadTodayData();
+          const today = new Date().toISOString().split('T')[0];
+          const briefings = await base44.entities.DailyBriefing.filter({ date: today });
+          if (briefings[0]?.status === 'complete') {
+            clearInterval(poll);
+            toast.success('Briefing ready!');
+            setGenerating(false);
+          } else if (attempts >= 24) {
+            clearInterval(poll);
+            toast.error('Generation timed out. Please try again.');
+            setGenerating(false);
+          }
+        }, 5000);
+      } else {
+        toast.error('Generation failed. Please try again.');
+        setGenerating(false);
+      }
+    });
   }
 
   useEffect(() => { loadTodayData(); }, []);
