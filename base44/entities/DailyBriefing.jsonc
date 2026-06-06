@@ -1,0 +1,70 @@
+{
+  "name": "DailyBriefing",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "The date of this briefing"
+    },
+    "market_posture": {
+      "type": "string",
+      "enum": [
+        "bullish",
+        "bearish",
+        "neutral",
+        "cautiously_bullish",
+        "cautiously_bearish"
+      ],
+      "description": "Overall market posture"
+    },
+    "narrative": {
+      "type": "string",
+      "description": "Full briefing narrative (2-4 paragraphs)"
+    },
+    "options_flow_summary": {
+      "type": "string",
+      "description": "Summary of unusual options flow"
+    },
+    "political_trades_summary": {
+      "type": "string",
+      "description": "Summary of political/insider trades"
+    },
+    "fintwit_summary": {
+      "type": "string",
+      "description": "Summary of FinTwit sentiment and notable tweets"
+    },
+    "macro_summary": {
+      "type": "string",
+      "description": "Macro environment summary"
+    },
+    "sources_used": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of sources that contributed to this briefing"
+    },
+    "raw_data": {
+      "type": "object",
+      "description": "Raw scraped data used to generate this briefing"
+    },
+    "is_manual_trigger": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this was manually triggered"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "generating",
+        "complete",
+        "failed"
+      ],
+      "default": "generating"
+    }
+  },
+  "required": [
+    "date"
+  ]
+}

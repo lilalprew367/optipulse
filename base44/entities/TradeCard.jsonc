@@ -1,0 +1,105 @@
+{
+  "name": "TradeCard",
+  "type": "object",
+  "properties": {
+    "briefing_id": {
+      "type": "string",
+      "description": "Reference to the DailyBriefing"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date this trade was generated"
+    },
+    "ticker": {
+      "type": "string",
+      "description": "Stock ticker symbol"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "call",
+        "put"
+      ],
+      "description": "Option direction"
+    },
+    "strike": {
+      "type": "string",
+      "description": "Strike price"
+    },
+    "expiry": {
+      "type": "string",
+      "description": "Option expiry date or range"
+    },
+    "entry_range": {
+      "type": "string",
+      "description": "Suggested entry price range"
+    },
+    "conviction_score": {
+      "type": "number",
+      "description": "AI conviction score 1-10"
+    },
+    "time_horizon": {
+      "type": "string",
+      "enum": [
+        "intraday",
+        "weekly",
+        "monthly",
+        "1-3 months"
+      ],
+      "description": "Trade time horizon"
+    },
+    "thesis": {
+      "type": "string",
+      "description": "2-3 sentence trade thesis"
+    },
+    "supporting_sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Sources that triggered this idea"
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "description": "Risk level"
+    },
+    "sector": {
+      "type": "string",
+      "description": "Market sector"
+    },
+    "catalyst": {
+      "type": "string",
+      "description": "Key catalyst for this trade"
+    },
+    "outcome_status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "entered",
+        "closed_win",
+        "closed_loss",
+        "expired"
+      ],
+      "default": "open"
+    },
+    "pnl_notes": {
+      "type": "string",
+      "description": "P&L notes if trade was taken"
+    },
+    "pnl_amount": {
+      "type": "number",
+      "description": "P&L amount in dollars"
+    }
+  },
+  "required": [
+    "date",
+    "ticker",
+    "direction"
+  ]
+}

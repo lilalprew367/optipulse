@@ -1,0 +1,57 @@
+{
+  "name": "TrackedSource",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Display name for this source"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "twitter",
+        "options_flow",
+        "political_disclosure",
+        "technical_analysis",
+        "news",
+        "custom"
+      ],
+      "description": "Type of source"
+    },
+    "identifier": {
+      "type": "string",
+      "description": "Twitter handle, URL, or API endpoint"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this source is currently being monitored"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Custom notes about this source"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "politician",
+        "fintwit",
+        "institution",
+        "insider",
+        "flow_data",
+        "other"
+      ],
+      "description": "Category for filtering"
+    },
+    "priority": {
+      "type": "number",
+      "default": 5,
+      "description": "Priority 1-10, higher = more weight in analysis"
+    }
+  },
+  "required": [
+    "name",
+    "source_type",
+    "identifier"
+  ]
+}
