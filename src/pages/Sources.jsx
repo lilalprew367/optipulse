@@ -12,10 +12,10 @@ import { cn } from '@/lib/utils';
 
 const DEFAULT_SOURCES = [
   { name: 'Unusual Whales', source_type: 'options_flow', identifier: 'unusualwhales.com', category: 'flow_data', priority: 10 },
-  { name: 'Quiver Quant Congress', source_type: 'political_disclosure', identifier: 'quiverquant.com/congresstrading', category: 'politician', priority: 9 },
+  { name: 'Quiver Quant (All Data)', source_type: 'political_disclosure', identifier: 'quiverquant.com (congress+senate+house+insiders+hedgefunds)', category: 'institution', priority: 10 },
+  { name: '@jimcramer', source_type: 'twitter', identifier: '@jimcramer', category: 'fintwit', priority: 8 },
   { name: '@unusual_whales', source_type: 'twitter', identifier: '@unusual_whales', category: 'fintwit', priority: 8 },
   { name: '@DeItaone', source_type: 'twitter', identifier: '@DeItaone', category: 'fintwit', priority: 7 },
-  { name: 'Nancy Pelosi Trades', source_type: 'political_disclosure', identifier: 'Nancy Pelosi', category: 'politician', priority: 9 },
   { name: 'Leopold Aschenbrenner', source_type: 'political_disclosure', identifier: 'Leopold Aschenbrenner', category: 'insider', priority: 8 },
 ];
 
