@@ -6,7 +6,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Layout from '@/components/Layout';
-import Dashboard from '@/pages/Dashboard.jsx';
+import Dashboard from '@/pages/Dashboard';
 import Trades from '@/pages/Trades';
 import History from '@/pages/History';
 import Sources from '@/pages/Sources';
