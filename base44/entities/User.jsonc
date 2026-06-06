@@ -1,4 +1,6 @@
 {
+  "name": "User",
+  "type": "object",
   "properties": {
     "role": {
       "type": "string",
@@ -7,11 +9,18 @@
         "admin",
         "user"
       ]
+    },
+    "telegram_chat_id": {
+      "type": "string",
+      "description": "Telegram Chat ID for notifications"
+    },
+    "telegram_daily_briefing": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable daily briefing summaries via Telegram"
     }
   },
   "required": [
     "role"
-  ],
-  "name": "User",
-  "type": "object"
+  ]
 }

@@ -276,10 +276,11 @@ REMINDER: Return ONLY the JSON object. No commentary before or after. Empty arra
       })
     ));
 
-    // Save new trade ideas (conviction 7+)
+    // Save new trade ideas (conviction 7+) and send Telegram alerts
     const tradeIdeas = (aiResponse.trade_ideas || []).filter(t => t.conviction_score >= 8);
-    await Promise.all(tradeIdeas.map(trade =>
-      base44.asServiceRole.entities.TradeCard.create({
+    await Promise.all(tradeIdeas.map(async (trade) => {
+      // Create trade card
+      await base44.asServiceRole.entities.TradeCard.create({
         briefing_id: briefingId,
         date: today,
         ticker: trade.ticker,
@@ -296,8 +297,30 @@ REMINDER: Return ONLY the JSON object. No commentary before or after. Empty arra
         sector: trade.sector,
         catalyst: trade.catalyst,
         outcome_status: "open"
-      })
-    ));
+      });
+
+      // Send Telegram alert for high conviction trades (9+)
+      if (trade.conviction_score >= 9) {
+        try {
+          const appUrl = 'https://alphaedge.app/trades';
+          const emoji = trade.direction === 'call' ? '📈' : '📉';
+          const convictionBars = '🔥'.repeat(Math.min(trade.conviction_score, 10));
+          
+          await base44.asServiceRole.functions.invoke('sendTelegramAlert', {
+            message: `${emoji} <b>HIGH CONVICTON ALERT</b> ${convictionBars}\n\n` +
+              `<b>${trade.ticker}</b> ${trade.direction.toUpperCase()}\n` +
+              `Strike: $${trade.strike} | Expiry: ${trade.expiry}\n` +
+              `Entry: ${trade.entry_range}\n` +
+              `Conviction: ${trade.conviction_score}/10\n\n` +
+              `<b>Thesis:</b> ${trade.thesis.slice(0, 200)}${trade.thesis.length > 200 ? '...' : ''}\n\n` +
+              `View in app: ${appUrl}`
+          });
+          console.log('[Telegram] Alert sent for', trade.ticker);
+        } catch (e) {
+          console.log('[Telegram] Failed to send alert:', e.message);
+        }
+      }
+    }));
 
     console.log(`[analyzeSignals] Posture: ${aiResponse.market_posture}, Alerts: ${alerts.length}, Trades: ${tradeIdeas.length}, Live quotes: ${liveQuotes.length}`);
 
