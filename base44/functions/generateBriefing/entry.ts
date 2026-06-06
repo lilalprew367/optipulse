@@ -1,8 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const DEFAULT_TWITTER_ACCOUNTS = [
-  "unusual_whales", "DeItaone", "chamath", "LeopoldAschenb",
-  "SpeakerPelosi", "elonmusk", "zerohedge", "markets"
+  "NoLimitGains", "InTheAssembly", "aleabitoreddit", "NousResearch",
+  "wolfgangkasper", "PhotonBull", "regardingsemi", "DoctorTrades1",
+  "BryzonX", "StonkChris", "sunxliao", "LucyBuilding",
+  "PeterBerezinBCA", "StockcoachPB", "koreavaluehunt", "ParadisLabs",
+  "QuantKaz", "grkportfolio", "theaiportfolios", "SantiagoAuFund",
+  "ralliesarena", "patricknill", "IliaBouchouev", "GavMcCracken",
+  "vulturetrades", "CKCapitalxx"
 ];
 
 // Fetch latest tweets from a list of accounts via twitterapi.io
