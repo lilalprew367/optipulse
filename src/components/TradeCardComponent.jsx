@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { TrendingUp, TrendingDown, Star, Clock, Target, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { TrendingUp, TrendingDown, Star, Clock, Target, Zap, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import TradingViewChart from '@/components/TradingViewChart';
 
@@ -161,6 +161,16 @@ export default function TradeCardComponent({ trade, onUpdate }) {
                 <p className="text-sm text-foreground/90 mt-1 leading-relaxed">{trade.thesis}</p>
               </div>
             )}
+            {trade.technical_confluence && (
+              <div className="border border-primary/20 rounded-md p-3 bg-primary/5">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <BarChart2 className="w-3 h-3 text-primary" />
+                  <span className="text-xs text-primary font-mono uppercase tracking-wide">Technical Confluence</span>
+                </div>
+                <p className="text-xs text-foreground/85 leading-relaxed">{trade.technical_confluence}</p>
+              </div>
+            )}
+
             {trade.supporting_sources?.length > 0 && (
               <div>
                 <span className="text-xs text-muted-foreground font-mono uppercase tracking-wide">Sources</span>

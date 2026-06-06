@@ -98,6 +98,16 @@ ${newsSignals.slice(0, 10).map(s => `[${s.signal_time}] ${s.source}: "${s.conten
 ===================================================================
 TWITTER SIGNAL FILTER: Focus heavily on high-conviction tweets that mention specific tickers, strikes, expiry, entry ideas, or clear theses. Prioritize posts with language like "sized in", "high conviction", "loading", "thesis", or risk discussion. Aggressively filter out vague hype, memes, self-promo, and low-substance noise. Only surface ideas with real edge when combined with options flow or political data.
 
+TECHNICAL CHART ANALYSIS — apply to every trade idea candidate using the live quotes above:
+For each ticker under consideration, reason through the chart structure based on price, volume, and known technical principles:
+- SUPPORT/RESISTANCE: Identify the nearest key levels from the live price. Is price at/near a major support, resistance, or prior high/low? Is it mid-range or extended?
+- MOVING AVERAGES: Estimate where price sits relative to common MAs (20, 50, 200-day). Is it above or below? Did it recently cross?
+- MOMENTUM: Based on the price change % and volume from the live quote, assess if momentum is accelerating or fading. High volume on a move up = bullish confirmation; high volume on reversal = warning sign.
+- BREAKOUT/BREAKDOWN: Is price attempting a breakout above resistance or breakdown below support? What would confirm or negate it?
+- ENTRY TRIGGER: Suggest a precise entry condition (e.g. "Enter on pullback to $X with volume drying up", "Enter on break above $Y on strong volume", "Wait for daily close above $Z").
+- STRIKE ALIGNMENT: Does the suggested strike make sense given the chart structure? Adjust if the chart suggests a different level as cleaner.
+- TECHNICAL FLAG: Explicitly state if the technical setup STRENGTHENS or WEAKENS the fundamental/flow thesis.
+
 ANALYSIS RULES — FOLLOW STRICTLY:
 ===================================================================
 
@@ -159,24 +169,25 @@ OUTPUT — STRICT JSON, NO PROSE OUTSIDE JSON:
     }
   ],
   "trade_ideas": [
-    {
-      "ticker": "TICKER",
-      "direction": "call|put",
-      "strike": "exact strike price (e.g. 195)",
-      "expiry": "e.g. Jul 18 2025",
-      "entry_range": "$X.XX - $X.XX (estimated premium range)",
-      "position_size": "e.g. 2 contracts (~$900 total risk)",
-      "risk_reward": "e.g. 1:3 (risk $900 to make ~$2700)",
-      "conviction_score": 8,
-      "time_horizon": "weekly|monthly|1-3 months",
-      "thesis": "3-4 sentences: why this trade, what signals support it, what invalidates it",
-      "supporting_sources": ["exact source handles or signal types from the feed"],
-      "risk_level": "low|medium|high",
-      "sector": "Sector",
-      "catalyst": "Specific upcoming catalyst or reason for near-term move"
-    }
+  {
+  "ticker": "TICKER",
+  "direction": "call|put",
+  "strike": "exact strike price (e.g. 195)",
+  "expiry": "e.g. Jul 18 2025",
+  "entry_range": "$X.XX - $X.XX (estimated premium range)",
+  "position_size": "e.g. 2 contracts (~$900 total risk)",
+  "risk_reward": "e.g. 1:3 (risk $900 to make ~$2700)",
+  "conviction_score": 8,
+  "time_horizon": "weekly|monthly|1-3 months",
+  "thesis": "3-4 sentences: why this trade, what signals support it, what invalidates it",
+  "technical_confluence": "Chart analysis: key support/resistance levels, MA positioning, momentum, breakout pattern if any, precise entry trigger, and whether technical setup STRENGTHENS or WEAKENS the thesis",
+  "supporting_sources": ["exact source handles or signal types from the feed"],
+  "risk_level": "low|medium|high",
+  "sector": "Sector",
+  "catalyst": "Specific upcoming catalyst or reason for near-term move"
+  }
   ]
-}
+  }
 
 REMINDER: Return ONLY the JSON object. No commentary before or after. Empty arrays for alerts/trades are acceptable and preferred over low-quality entries.`;
 
@@ -217,6 +228,7 @@ REMINDER: Return ONLY the JSON object. No commentary before or after. Empty arra
                 conviction_score: { type: "number" },
                 time_horizon: { type: "string" },
                 thesis: { type: "string" },
+                technical_confluence: { type: "string" },
                 supporting_sources: { type: "array", items: { type: "string" } },
                 risk_level: { type: "string" },
                 sector: { type: "string" },
@@ -278,6 +290,7 @@ REMINDER: Return ONLY the JSON object. No commentary before or after. Empty arra
         conviction_score: trade.conviction_score,
         time_horizon: trade.time_horizon,
         thesis: `${trade.thesis}${trade.position_size ? `\n\nPosition: ${trade.position_size}` : ''}${trade.risk_reward ? ` | R/R: ${trade.risk_reward}` : ''}`,
+        technical_confluence: trade.technical_confluence || null,
         supporting_sources: trade.supporting_sources || [],
         risk_level: trade.risk_level,
         sector: trade.sector,

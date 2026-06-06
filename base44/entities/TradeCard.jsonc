@@ -53,6 +53,10 @@
       "type": "string",
       "description": "2-3 sentence trade thesis"
     },
+    "technical_confluence": {
+      "type": "string",
+      "description": "Chart-based technical analysis: key levels, indicators, entry triggers"
+    },
     "supporting_sources": {
       "type": "array",
       "items": {

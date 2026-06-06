@@ -234,6 +234,16 @@ TWITTER SIGNAL FILTER: Focus heavily on high-conviction tweets that mention spec
 
 SUBSTACK WEIGHTING: Long-form Substack theses (Doomberg, The Diff, Phenom Capital, etc.) represent deep independent research. When a Substack thesis aligns with unusual options flow AND/OR FinTwit conviction on the same ticker or macro theme, treat it as a strong corroborating signal — worth +1 to conviction score. A Substack piece alone is not a trade trigger, but in combination with flow or political data it significantly elevates conviction. Quote the publication name and thesis angle when referencing.
 
+TECHNICAL CHART ANALYSIS — apply to every trade idea candidate:
+For each ticker under consideration, reason through chart structure using your knowledge of technical analysis and the current macro environment (today: ${today}):
+- SUPPORT/RESISTANCE: Identify the nearest key levels. Is price at/near a major support, resistance, prior high/low, or round number? Is it mid-range or extended?
+- MOVING AVERAGES: Reason about where price likely sits relative to key MAs (20, 50, 200-day). Recently crossed? Holding above/below?
+- MOMENTUM: Is momentum building or fading based on recent price action? Volume expanding or contracting?
+- BREAKOUT/BREAKDOWN: Any pattern forming — bull flag, ascending triangle, double top, wedge? What confirms or negates it?
+- ENTRY TRIGGER: Suggest a precise entry condition (e.g. "Enter on pullback to $X with volume drying up", "Enter on break above $Y on strong volume", "Wait for daily close above $Z").
+- STRIKE ALIGNMENT: Does the suggested strike align with chart structure? Adjust if the chart suggests a cleaner level.
+- TECHNICAL FLAG: State clearly if the technical setup STRENGTHENS or WEAKENS the thesis.
+
 NEWS WEIGHTING: Breaking market news should be cross-referenced with options flow. Unusual flow that precedes or coincides with a news catalyst is one of the highest-signal combinations. Flag any cases where flow appears to "front-run" a news item.
 
 TASK: Aggressively filter for HIGH-CONVICTION signals only.
@@ -272,22 +282,23 @@ OUTPUT FORMAT (strict JSON):
   "fintwit_summary": "2-3 sentences on social media signals from monitored accounts",
   "macro_summary": "2-3 sentences on macro backdrop",
   "trade_ideas": [
-    {
-      "ticker": "TICKER",
-      "direction": "call|put",
-      "strike": "price",
-      "expiry": "month year or date range",
-      "entry_range": "$X.XX - $X.XX",
-      "conviction_score": 8,
-      "time_horizon": "1-3 months",
-      "thesis": "2-3 sentence explanation of the trade",
-      "supporting_sources": ["unusual_whales", "congressional_trades"],
-      "risk_level": "low|medium|high",
-      "sector": "Technology",
-      "catalyst": "Key upcoming catalyst"
-    }
+  {
+  "ticker": "TICKER",
+  "direction": "call|put",
+  "strike": "price",
+  "expiry": "month year or date range",
+  "entry_range": "$X.XX - $X.XX",
+  "conviction_score": 8,
+  "time_horizon": "1-3 months",
+  "thesis": "2-3 sentence explanation of the trade",
+  "technical_confluence": "Chart analysis: key support/resistance levels, MA positioning, momentum, breakout pattern if any, precise entry trigger, and whether technical setup STRENGTHENS or WEAKENS the thesis",
+  "supporting_sources": ["unusual_whales", "congressional_trades"],
+  "risk_level": "low|medium|high",
+  "sector": "Technology",
+  "catalyst": "Key upcoming catalyst"
+  }
   ]
-}
+  }
 
 Only include trade ideas with conviction_score >= 8. Quality over quantity — 0 ideas is better than weak ones. Use the live data above as primary signal, supplemented by your market knowledge.`;
 
@@ -315,6 +326,7 @@ Only include trade ideas with conviction_score >= 8. Quality over quantity — 0
                 conviction_score: { type: "number" },
                 time_horizon: { type: "string" },
                 thesis: { type: "string" },
+                technical_confluence: { type: "string" },
                 supporting_sources: { type: "array", items: { type: "string" } },
                 risk_level: { type: "string" },
                 sector: { type: "string" },
@@ -360,6 +372,7 @@ Only include trade ideas with conviction_score >= 8. Quality over quantity — 0
         conviction_score: trade.conviction_score,
         time_horizon: trade.time_horizon,
         thesis: trade.thesis,
+        technical_confluence: trade.technical_confluence || null,
         supporting_sources: trade.supporting_sources || [],
         risk_level: trade.risk_level,
         sector: trade.sector,
