@@ -11,6 +11,81 @@ const TWITTER_ACCOUNTS = [
   "KobeissiLetter", "alphatrends", "PeterLBrandt"
 ];
 
+const SUBSTACK_FEEDS = [
+  { name: "Doomberg", url: "https://doomberg.substack.com/feed" },
+  { name: "The Diff", url: "https://www.thediff.co/feed" },
+  { name: "Phenom Capital", url: "https://phenomcapital.substack.com/feed" },
+  { name: "Kyla's Newsletter", url: "https://kyla.substack.com/feed" },
+  { name: "Concoda", url: "https://concoda.substack.com/feed" }
+];
+
+// Parse RSS XML into simple post objects
+function parseRSS(xml, sourceName) {
+  const items = [];
+  const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
+  for (const match of itemMatches) {
+    const block = match[1];
+    const title = (block.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || block.match(/<title>(.*?)<\/title>/))?.[1] || "";
+    const link = (block.match(/<link>(.*?)<\/link>/))?.[1] || "";
+    const pubDate = (block.match(/<pubDate>(.*?)<\/pubDate>/))?.[1] || "";
+    const description = (block.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/) || block.match(/<description>(.*?)<\/description>/))?.[1] || "";
+    // Strip HTML tags from description for clean text
+    const cleanDesc = description.replace(/<[^>]+>/g, "").slice(0, 500);
+    if (title) items.push({ title, link, pubDate, summary: cleanDesc, source: sourceName });
+  }
+  return items.slice(0, 3);
+}
+
+async function fetchSubstackFeeds() {
+  const results = [];
+  await Promise.all(SUBSTACK_FEEDS.map(async ({ name, url }) => {
+    try {
+      const res = await fetch(url, { headers: { "Accept": "application/rss+xml, application/xml, text/xml" } });
+      if (!res.ok) return;
+      const xml = await res.text();
+      const posts = parseRSS(xml, name);
+      posts.forEach(p => results.push(p));
+    } catch (e) {
+      console.log(`[Substack] ${name} error: ${e.message}`);
+    }
+  }));
+  return results;
+}
+
+async function fetchMarketauxNews() {
+  const apiKey = Deno.env.get("MARKETAUX_API_KEY");
+  if (!apiKey) {
+    // Fallback: fetch financial news via free RSS from Seeking Alpha / Reuters
+    try {
+      const res = await fetch("https://feeds.finance.yahoo.com/rss/2.0/headline?s=SPY,QQQ,AAPL,NVDA,META&region=US&lang=en-US");
+      if (!res.ok) return [];
+      const xml = await res.text();
+      return parseRSS(xml, "Yahoo Finance").map(p => ({ ...p, isNews: true }));
+    } catch (e) {
+      console.log(`[News] Yahoo RSS error: ${e.message}`);
+      return [];
+    }
+  }
+  try {
+    const res = await fetch(
+      `https://api.marketaux.com/v1/news/all?symbols=SPY,QQQ,AAPL,NVDA,META,MSFT,AMZN,TSLA&filter_entities=true&language=en&limit=10&api_token=${apiKey}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data?.data || []).map(a => ({
+      title: a.title,
+      link: a.url,
+      pubDate: a.published_at,
+      summary: a.description || "",
+      source: "Marketaux",
+      isNews: true
+    }));
+  } catch (e) {
+    console.log(`[Marketaux] error: ${e.message}`);
+    return [];
+  }
+}
+
 function isMarketHours() {
   const now = new Date();
   // Convert to ET
@@ -114,6 +189,34 @@ Deno.serve(async (req) => {
       }
     }
 
+    // --- SUBSTACK (24/7) ---
+    const substackPosts = await fetchSubstackFeeds();
+    for (const post of substackPosts) {
+      const signalId = `substack_${Buffer.from(post.link || post.title).toString('base64').slice(0, 32)}`;
+      newSignals.push({
+        signal_type: "substack",
+        source: post.source,
+        content: `${post.title} — ${post.summary}`,
+        signal_id: signalId,
+        signal_time: post.pubDate ? new Date(post.pubDate).toISOString() : new Date().toISOString(),
+        metadata: { title: post.title, link: post.link }
+      });
+    }
+
+    // --- NEWS (24/7) ---
+    const newsItems = await fetchMarketauxNews();
+    for (const item of newsItems) {
+      const signalId = `news_${Buffer.from(item.link || item.title).toString('base64').slice(0, 32)}`;
+      newSignals.push({
+        signal_type: "news",
+        source: item.source,
+        content: `${item.title} — ${item.summary}`,
+        signal_id: signalId,
+        signal_time: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+        metadata: { title: item.title, link: item.link }
+      });
+    }
+
     // --- DEDUPE & SAVE ---
     // Load existing signal_ids from last 24h to avoid duplicates
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -131,9 +234,11 @@ Deno.serve(async (req) => {
       savedCount.tweets = toSave.filter(s => s.signal_type === 'tweet').length;
       savedCount.options = toSave.filter(s => s.signal_type === 'options_flow').length;
       savedCount.political = toSave.filter(s => s.signal_type === 'political_trade').length;
+      savedCount.substack = toSave.filter(s => s.signal_type === 'substack').length;
+      savedCount.news = toSave.filter(s => s.signal_type === 'news').length;
     }
 
-    console.log(`[fetchSignals] Saved ${toSave.length} new signals (${savedCount.tweets} tweets, ${savedCount.options} options, ${savedCount.political} political)`);
+    console.log(`[fetchSignals] Saved ${toSave.length} new signals (${savedCount.tweets} tweets, ${savedCount.options} options, ${savedCount.political} political, ${savedCount.substack} substack, ${savedCount.news} news)`);
 
     return Response.json({
       success: true,

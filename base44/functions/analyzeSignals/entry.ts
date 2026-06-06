@@ -46,6 +46,8 @@ Deno.serve(async (req) => {
     const tweetSignals = recentSignals.filter(s => s.signal_type === 'tweet');
     const flowSignals = recentSignals.filter(s => s.signal_type === 'options_flow');
     const politicalSignals = recentSignals.filter(s => s.signal_type === 'political_trade');
+    const substackSignals = recentSignals.filter(s => s.signal_type === 'substack');
+    const newsSignals = recentSignals.filter(s => s.signal_type === 'news');
 
     // Extract unique tickers mentioned across all signals and fetch live quotes
     const LIQUID_TICKERS = ["SPY", "QQQ", "AAPL", "NVDA", "MSFT", "AMZN", "TSLA", "META", "GOOGL", "AMD", "NFLX", "JPM", "GS", "BAC", "XLF", "XLK", "IWM"];
@@ -87,11 +89,21 @@ ${flowSignals.slice(0, 20).map(s => `[${s.signal_time}] ${s.content}`).join('\n'
 === POLITICAL/INSIDER TRADES (${politicalSignals.length} signals) ===
 ${politicalSignals.slice(0, 15).map(s => `[${s.signal_time}] ${s.content}`).join('\n')}
 
+=== SUBSTACK LONG-FORM THESES (${substackSignals.length} signals) ===
+${substackSignals.slice(0, 10).map(s => `[${s.signal_time}] ${s.source}: "${s.content}"`).join('\n')}
+
+=== MARKET NEWS (${newsSignals.length} signals) ===
+${newsSignals.slice(0, 10).map(s => `[${s.signal_time}] ${s.source}: "${s.content}"`).join('\n')}
+
 ===================================================================
 TWITTER SIGNAL FILTER: Focus heavily on high-conviction tweets that mention specific tickers, strikes, expiry, entry ideas, or clear theses. Prioritize posts with language like "sized in", "high conviction", "loading", "thesis", or risk discussion. Aggressively filter out vague hype, memes, self-promo, and low-substance noise. Only surface ideas with real edge when combined with options flow or political data.
 
 ANALYSIS RULES — FOLLOW STRICTLY:
 ===================================================================
+
+SUBSTACK WEIGHTING: Long-form Substack theses (Doomberg, The Diff, Phenom Capital, etc.) represent deep research. When a Substack thesis aligns with unusual options flow AND/OR FinTwit conviction on the same ticker or macro theme, treat it as a strong independent corroborating signal — potentially worth +1 to conviction score. A well-argued Substack piece alone is not a trade trigger, but in combination with flow or political data it significantly elevates conviction.
+
+NEWS WEIGHTING: Breaking news from the news feed should be cross-referenced with options flow. Unusual flow that precedes a news catalyst is the highest-signal combination in this system.
 
 SIGNAL CONVERGENCE: Only generate a trade idea when 2+ independent signal types align on the same ticker/thesis (e.g., unusual flow + FinTwit mention + political buy = very high conviction). Single-source ideas should be scored lower and only included if extraordinarily strong.
 

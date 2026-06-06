@@ -88,6 +88,72 @@ async function fetchQuiverQuant() {
   }
 }
 
+const SUBSTACK_FEEDS = [
+  { name: "Doomberg", url: "https://doomberg.substack.com/feed" },
+  { name: "The Diff", url: "https://www.thediff.co/feed" },
+  { name: "Phenom Capital", url: "https://phenomcapital.substack.com/feed" },
+  { name: "Kyla's Newsletter", url: "https://kyla.substack.com/feed" },
+  { name: "Concoda", url: "https://concoda.substack.com/feed" }
+];
+
+function parseRSS(xml, sourceName) {
+  const items = [];
+  const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
+  for (const match of itemMatches) {
+    const block = match[1];
+    const title = (block.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || block.match(/<title>(.*?)<\/title>/))?.[1] || "";
+    const link = (block.match(/<link>(.*?)<\/link>/))?.[1] || "";
+    const pubDate = (block.match(/<pubDate>(.*?)<\/pubDate>/))?.[1] || "";
+    const description = (block.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/) || block.match(/<description>(.*?)<\/description>/))?.[1] || "";
+    const cleanDesc = description.replace(/<[^>]+>/g, "").slice(0, 600);
+    if (title) items.push({ title, link, pubDate, summary: cleanDesc, source: sourceName });
+  }
+  return items.slice(0, 3);
+}
+
+async function fetchSubstackFeeds() {
+  const results = [];
+  await Promise.all(SUBSTACK_FEEDS.map(async ({ name, url }) => {
+    try {
+      const res = await fetch(url, { headers: { "Accept": "application/rss+xml, application/xml, text/xml" } });
+      if (!res.ok) return;
+      const xml = await res.text();
+      parseRSS(xml, name).forEach(p => results.push(p));
+    } catch (e) {
+      console.log(`[Substack] ${name} error: ${e.message}`);
+    }
+  }));
+  return results;
+}
+
+async function fetchMarketauxNews() {
+  const apiKey = Deno.env.get("MARKETAUX_API_KEY");
+  if (!apiKey) {
+    try {
+      const res = await fetch("https://feeds.finance.yahoo.com/rss/2.0/headline?s=SPY,QQQ,AAPL,NVDA,META&region=US&lang=en-US");
+      if (!res.ok) return [];
+      const xml = await res.text();
+      return parseRSS(xml, "Yahoo Finance");
+    } catch (e) {
+      console.log(`[News] Yahoo RSS error: ${e.message}`);
+      return [];
+    }
+  }
+  try {
+    const res = await fetch(
+      `https://api.marketaux.com/v1/news/all?symbols=SPY,QQQ,AAPL,NVDA,META,MSFT,AMZN,TSLA&filter_entities=true&language=en&limit=10&api_token=${apiKey}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data?.data || []).map(a => ({
+      title: a.title, link: a.url, pubDate: a.published_at, summary: a.description || "", source: "Marketaux"
+    }));
+  } catch (e) {
+    console.log(`[Marketaux] error: ${e.message}`);
+    return [];
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -123,17 +189,21 @@ Deno.serve(async (req) => {
 
     const allTwitterHandles = [...new Set([...DEFAULT_TWITTER_ACCOUNTS, ...dbTwitterHandles])];
 
-    // Parallel data collection from all 3 sources
-    const [unusualWhalesData, quiverData, twitterData] = await Promise.all([
+    // Parallel data collection from all sources
+    const [unusualWhalesData, quiverData, twitterData, substackData, newsData] = await Promise.all([
       fetchUnusualWhales(),
       fetchQuiverQuant(),
-      fetchTwitterPosts(allTwitterHandles)
+      fetchTwitterPosts(allTwitterHandles),
+      fetchSubstackFeeds(),
+      fetchMarketauxNews()
     ]);
 
     const rawData = {
       unusual_whales: unusualWhalesData,
       quiver_quant: quiverData,
       twitter: twitterData,
+      substack: { data: substackData, success: substackData.length > 0 },
+      news: { data: newsData, success: newsData.length > 0 },
       collection_timestamp: new Date().toISOString()
     };
 
@@ -154,7 +224,17 @@ ${twitterData.data?.slice(0, 20).map(t => `${t.account}: "${t.text}"`).join('\n'
 
 Monitored accounts: ${allTwitterHandles.map(h => '@' + h).join(', ')}
 
+--- Substack Long-Form Theses (${substackData.length > 0 ? 'LIVE' : 'unavailable'}):
+${substackData.map(p => `[${p.source}] "${p.title}" — ${p.summary}`).join('\n')}
+
+--- Market News Headlines (${newsData.length > 0 ? 'LIVE' : 'unavailable'}):
+${newsData.map(n => `[${n.source}] "${n.title}" — ${n.summary}`).join('\n')}
+
 TWITTER SIGNAL FILTER: Focus heavily on high-conviction tweets that mention specific tickers, strikes, expiry, entry ideas, or clear theses. Prioritize posts with language like "sized in", "high conviction", "loading", "thesis", or risk discussion. Aggressively filter out vague hype, memes, self-promo, and low-substance noise. Only surface ideas with real edge when combined with options flow or political data.
+
+SUBSTACK WEIGHTING: Long-form Substack theses (Doomberg, The Diff, Phenom Capital, etc.) represent deep independent research. When a Substack thesis aligns with unusual options flow AND/OR FinTwit conviction on the same ticker or macro theme, treat it as a strong corroborating signal — worth +1 to conviction score. A Substack piece alone is not a trade trigger, but in combination with flow or political data it significantly elevates conviction. Quote the publication name and thesis angle when referencing.
+
+NEWS WEIGHTING: Breaking market news should be cross-referenced with options flow. Unusual flow that precedes or coincides with a news catalyst is one of the highest-signal combinations. Flag any cases where flow appears to "front-run" a news item.
 
 TASK: Aggressively filter for HIGH-CONVICTION signals only.
 
@@ -259,6 +339,8 @@ Only include trade ideas with conviction_score >= 8. Quality over quantity — 0
         unusualWhalesData.success ? "unusual_whales_live" : "unusual_whales_ai",
         quiverData.success ? "quiver_quant_live" : "quiver_quant_ai",
         twitterData.success ? "twitter_live" : "twitter_ai",
+        substackData.length > 0 ? "substack_live" : "substack_unavailable",
+        newsData.length > 0 ? "news_live" : "news_unavailable",
         ...allTwitterHandles.slice(0, 6).map(h => "@" + h)
       ],
       raw_data: rawData

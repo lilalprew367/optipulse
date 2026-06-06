@@ -7,13 +7,15 @@
       "enum": [
         "tweet",
         "options_flow",
-        "political_trade"
+        "political_trade",
+        "news",
+        "substack"
       ],
       "description": "Type of signal"
     },
     "source": {
       "type": "string",
-      "description": "Source handle, ticker, or politician name"
+      "description": "Source handle, ticker, or publication name"
     },
     "content": {
       "type": "string",
