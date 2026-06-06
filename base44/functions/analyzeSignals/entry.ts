@@ -1,5 +1,31 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+// Fetch real-time quote + key stats from Alpha Vantage for a ticker
+async function fetchQuote(ticker) {
+  const apiKey = Deno.env.get("ALPHA_VANTAGE_API_KEY");
+  if (!apiKey) return null;
+  try {
+    const res = await fetch(
+      `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${apiKey}`
+    );
+    const data = await res.json();
+    const q = data["Global Quote"];
+    if (!q || !q["05. price"]) return null;
+    return {
+      ticker,
+      price: parseFloat(q["05. price"]),
+      change_pct: q["10. change percent"],
+      volume: parseInt(q["06. volume"] || "0"),
+      prev_close: parseFloat(q["08. previous close"]),
+      high: parseFloat(q["03. high"]),
+      low: parseFloat(q["04. low"]),
+    };
+  } catch (e) {
+    console.log(`[AlphaVantage] ${ticker} error: ${e.message}`);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -21,9 +47,34 @@ Deno.serve(async (req) => {
     const flowSignals = recentSignals.filter(s => s.signal_type === 'options_flow');
     const politicalSignals = recentSignals.filter(s => s.signal_type === 'political_trade');
 
+    // Extract unique tickers mentioned across all signals and fetch live quotes
+    const LIQUID_TICKERS = ["SPY", "QQQ", "AAPL", "NVDA", "MSFT", "AMZN", "TSLA", "META", "GOOGL", "AMD", "NFLX", "JPM", "GS", "BAC", "XLF", "XLK", "IWM"];
+    const mentionedTickers = new Set();
+    recentSignals.forEach(s => {
+      if (s.ticker) mentionedTickers.add(s.ticker.toUpperCase());
+      // Extract $TICKER mentions from content
+      const matches = (s.content || "").match(/\$([A-Z]{1,5})\b/g) || [];
+      matches.forEach(m => mentionedTickers.add(m.replace("$", "")));
+    });
+    // Union with liquid list, cap at 8 quotes to stay within free-tier rate limits
+    const tickersToFetch = [...new Set([...mentionedTickers, ...LIQUID_TICKERS])]
+      .filter(t => LIQUID_TICKERS.includes(t))
+      .slice(0, 8);
+
+    const quoteResults = await Promise.all(tickersToFetch.map(t => fetchQuote(t)));
+    const liveQuotes = quoteResults.filter(Boolean);
+    const quotesBlock = liveQuotes.length > 0
+      ? liveQuotes.map(q =>
+          `${q.ticker}: $${q.price} (${q.change_pct}) | Vol: ${q.volume.toLocaleString()} | H/L: $${q.high}/$${q.low}`
+        ).join('\n')
+      : "No live quotes available (API limit or off-hours)";
+
     const prompt = `You are AlphaEdge, an elite options trading intelligence system. Your ONLY job is to surface the highest-conviction, most actionable options setups for a retail trader with a sub-$50K account. Be ruthlessly selective.
 
 Current time: ${new Date().toISOString()}
+
+=== LIVE MARKET QUOTES (Alpha Vantage — use these for accurate strike/entry calculations) ===
+${quotesBlock}
 
 RECENT SIGNALS (last 2 hours):
 
@@ -47,10 +98,11 @@ LIQUIDITY FILTER (hard gate — reject anything that fails):
 - Avoid micro-caps, thinly traded stocks, or names with wide bid/ask spreads.
 - No 0DTE plays. Minimum 3 weeks to expiry.
 
-STRIKE SELECTION:
+STRIKE SELECTION (use the LIVE QUOTES above for precise calculations):
 - Calls: 5-10% OTM for aggressive, ATM for moderate, slightly ITM for conservative.
 - Puts: 5-10% OTM for aggressive, ATM for moderate.
-- Always suggest a specific strike price based on current approximate levels.
+- Always calculate and state a specific dollar strike based on the live price provided above.
+- If a live quote is unavailable for a ticker, do not generate a trade idea for it.
 
 EXPIRY: Prefer 30-60 DTE for weeklies/monthlies. Max 90 DTE. State exact month and approximate date.
 
@@ -220,7 +272,7 @@ REMINDER: Return ONLY the JSON object. No commentary before or after. Empty arra
       })
     ));
 
-    console.log(`[analyzeSignals] Posture: ${aiResponse.market_posture}, Alerts: ${alerts.length}, Trades: ${tradeIdeas.length}`);
+    console.log(`[analyzeSignals] Posture: ${aiResponse.market_posture}, Alerts: ${alerts.length}, Trades: ${tradeIdeas.length}, Live quotes: ${liveQuotes.length}`);
 
     return Response.json({
       success: true,
