@@ -109,33 +109,10 @@ Deno.serve(async (req) => {
     const newSignals = [];
     const savedCount = { tweets: 0, options: 0, political: 0 };
 
-    // --- TWITTER (24/7) ---
-    if (twitterApiKey) {
-      const tweetFetches = TWITTER_ACCOUNTS.map(async (handle) => {
-        try {
-          const res = await fetch(`https://api.twitterapi.io/twitter/user/last_tweets?userName=${handle}`, {
-            headers: { "X-API-Key": twitterApiKey, "Accept": "application/json" }
-          });
-          if (!res.ok) return;
-          const data = await res.json();
-          const tweets = (data?.data?.tweets || data?.tweets || []).slice(0, 3);
-          for (const t of tweets) {
-            if (!t.id || !t.text) continue;
-            newSignals.push({
-              signal_type: "tweet",
-              source: `@${handle}`,
-              content: t.text,
-              signal_id: `tweet_${t.id}`,
-              signal_time: t.createdAt || new Date().toISOString(),
-              metadata: { tweet_id: t.id, url: t.url }
-            });
-          }
-        } catch (e) {
-          console.log(`[Twitter] @${handle} error: ${e.message}`);
-        }
-      });
-      await Promise.all(tweetFetches);
-    }
+    // --- TWITTER ---
+    // Tweets now arrive via webhook from stream subscription (no polling needed)
+    // Webhook endpoint: functions/twitterWebhook
+    console.log('[Twitter] Stream subscription active - tweets arrive via webhook');
 
     // --- OPTIONS FLOW (market hours only) ---
     if (uwApiKey && isMarketHours()) {
