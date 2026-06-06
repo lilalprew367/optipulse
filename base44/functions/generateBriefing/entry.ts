@@ -16,9 +16,8 @@ async function fetchTwitterPosts(handles) {
   if (!apiKey) return { source: "twitter", data: [], success: false, note: "No API key" };
 
   const results = [];
-  // Free tier: 1 req per 5s — fetch sequentially with delay, max 5 accounts
-  const toFetch = handles.slice(0, 5);
-  for (const handle of toFetch) {
+  // Paid tier: fetch all accounts in parallel
+  await Promise.all(handles.map(async (handle) => {
     try {
       const clean = handle.replace("@", "");
       const url = `https://api.twitterapi.io/twitter/user/last_tweets?userName=${clean}`;
@@ -29,7 +28,6 @@ async function fetchTwitterPosts(handles) {
       console.log(`[Twitter] @${clean} → HTTP ${res.status}: ${responseText.slice(0, 200)}`);
       if (res.ok) {
         const data = JSON.parse(responseText);
-        // Response is nested under data.tweets
         const tweets = (data?.data?.tweets || data?.tweets || []).slice(0, 5);
         tweets.forEach(t => results.push({
           account: `@${clean}`,
@@ -40,9 +38,7 @@ async function fetchTwitterPosts(handles) {
     } catch (e) {
       console.log(`[Twitter] @${handle} error: ${e.message}`);
     }
-    // Wait 6 seconds between requests to respect free-tier rate limit
-    await new Promise(r => setTimeout(r, 6000));
-  }
+  }));
 
   return { source: "twitter", data: results, success: results.length > 0 };
 }
