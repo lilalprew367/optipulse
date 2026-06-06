@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
     // --- SUBSTACK (24/7) ---
     const substackPosts = await fetchSubstackFeeds();
     for (const post of substackPosts) {
-      const signalId = `substack_${Buffer.from(post.link || post.title).toString('base64').slice(0, 32)}`;
+      const signalId = `substack_${btoa(encodeURIComponent(post.link || post.title)).slice(0, 32)}`;
       newSignals.push({
         signal_type: "substack",
         source: post.source,
@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
     // --- NEWS (24/7) ---
     const newsItems = await fetchMarketauxNews();
     for (const item of newsItems) {
-      const signalId = `news_${Buffer.from(item.link || item.title).toString('base64').slice(0, 32)}`;
+      const signalId = `news_${btoa(encodeURIComponent(item.link || item.title)).slice(0, 32)}`;
       newSignals.push({
         signal_type: "news",
         source: item.source,
