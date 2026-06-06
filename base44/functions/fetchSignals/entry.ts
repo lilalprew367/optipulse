@@ -1,13 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const TWITTER_ACCOUNTS = [
-  "NoLimitGains", "InTheAssembly", "aleabitoreddit", "NousResearch",
-  "wolfgangkasper", "PhotonBull", "regardingsemi", "DoctorTrades1",
-  "BryzonX", "StonkChris", "sunxliao", "LucyBuilding",
-  "PeterBerezinBCA", "StockcoachPB", "koreavaluehunt", "ParadisLabs",
-  "QuantKaz", "grkportfolio", "theaiportfolios", "SantiagoAuFund",
-  "ralliesarena", "patricknill", "IliaBouchouev", "GavMcCracken",
-  "vulturetrades", "CKCapitalxx"
+  // Core — solid signal, macro/options/thesis focus
+  "aleabitoreddit", "NousResearch", "wolfgangkasper", "PeterBerezinBCA",
+  "koreavaluehunt", "ParadisLabs", "QuantKaz", "grkportfolio",
+  "theaiportfolios", "SantiagoAuFund", "IliaBouchouev", "GavMcCracken",
+  "vulturetrades",
+  // High-conviction adds — options flow, thesis-heavy
+  "Mr_Derivatives", "OptionsHawk", "3PeaksTrading", "jfahmy",
+  "KobeissiLetter", "alphatrends", "PeterLBrandt"
 ];
 
 function isMarketHours() {

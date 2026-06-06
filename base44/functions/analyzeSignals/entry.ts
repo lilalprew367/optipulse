@@ -88,6 +88,8 @@ ${flowSignals.slice(0, 20).map(s => `[${s.signal_time}] ${s.content}`).join('\n'
 ${politicalSignals.slice(0, 15).map(s => `[${s.signal_time}] ${s.content}`).join('\n')}
 
 ===================================================================
+TWITTER SIGNAL FILTER: Focus heavily on high-conviction tweets that mention specific tickers, strikes, expiry, entry ideas, or clear theses. Prioritize posts with language like "sized in", "high conviction", "loading", "thesis", or risk discussion. Aggressively filter out vague hype, memes, self-promo, and low-substance noise. Only surface ideas with real edge when combined with options flow or political data.
+
 ANALYSIS RULES — FOLLOW STRICTLY:
 ===================================================================
 

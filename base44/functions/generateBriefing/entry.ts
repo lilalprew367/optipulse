@@ -1,13 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const DEFAULT_TWITTER_ACCOUNTS = [
-  "NoLimitGains", "InTheAssembly", "aleabitoreddit", "NousResearch",
-  "wolfgangkasper", "PhotonBull", "regardingsemi", "DoctorTrades1",
-  "BryzonX", "StonkChris", "sunxliao", "LucyBuilding",
-  "PeterBerezinBCA", "StockcoachPB", "koreavaluehunt", "ParadisLabs",
-  "QuantKaz", "grkportfolio", "theaiportfolios", "SantiagoAuFund",
-  "ralliesarena", "patricknill", "IliaBouchouev", "GavMcCracken",
-  "vulturetrades", "CKCapitalxx"
+  // Core — solid signal, macro/options/thesis focus
+  "aleabitoreddit", "NousResearch", "wolfgangkasper", "PeterBerezinBCA",
+  "koreavaluehunt", "ParadisLabs", "QuantKaz", "grkportfolio",
+  "theaiportfolios", "SantiagoAuFund", "IliaBouchouev", "GavMcCracken",
+  "vulturetrades",
+  // High-conviction adds — options flow, thesis-heavy
+  "Mr_Derivatives", "OptionsHawk", "3PeaksTrading", "jfahmy",
+  "KobeissiLetter", "alphatrends", "PeterLBrandt"
 ];
 
 // Fetch latest tweets from a list of accounts via twitterapi.io
@@ -152,6 +153,8 @@ ${JSON.stringify(quiverData.data?.slice(0, 10))}
 ${twitterData.data?.slice(0, 20).map(t => `${t.account}: "${t.text}"`).join('\n')}
 
 Monitored accounts: ${allTwitterHandles.map(h => '@' + h).join(', ')}
+
+TWITTER SIGNAL FILTER: Focus heavily on high-conviction tweets that mention specific tickers, strikes, expiry, entry ideas, or clear theses. Prioritize posts with language like "sized in", "high conviction", "loading", "thesis", or risk discussion. Aggressively filter out vague hype, memes, self-promo, and low-substance noise. Only surface ideas with real edge when combined with options flow or political data.
 
 TASK: Aggressively filter for HIGH-CONVICTION signals only.
 
