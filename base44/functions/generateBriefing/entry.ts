@@ -1,55 +1,75 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-const DEFAULT_SOURCES = {
-  twitter_accounts: [
-    "@unusual_whales", "@DeItaone", "@jimcramer", "@chamath",
-    "@elonmusk", "@LeopoldAschenb", "@nancy_pelosi_trades", "@SpeakerPelosi"
-  ],
-  options_flow_urls: [
-    "https://unusualwhales.com/flow",
-    "https://www.quiverquant.com/congresstrading/"
-  ],
-  political_disclosure: [
-    "https://www.quiverquant.com/congresstrading/",
-    "https://efts.sec.gov/LATEST/search-index?q=%22Form+4%22&dateRange=custom&startdt=TODAY"
-  ]
-};
+const DEFAULT_TWITTER_ACCOUNTS = [
+  "unusual_whales", "DeItaone", "chamath", "LeopoldAschenb",
+  "SpeakerPelosi", "elonmusk", "zerohedge", "markets"
+];
 
-async function scrapeUnusualWhales() {
-  const apiKey = Deno.env.get("UNUSUAL_WHALES_API_KEY");
-  try {
-    const res = await fetch("https://api.unusualwhales.com/api/option-trades/flow-alerts?limit=50", {
-      headers: {
-        "Accept": "application/json",
-        ...(apiKey ? { "Authorization": `Bearer ${apiKey}` } : {})
+// Fetch latest tweets from a list of accounts via twitterapi.io
+async function fetchTwitterPosts(handles) {
+  const apiKey = Deno.env.get("TWITTERAPI_IO_KEY");
+  if (!apiKey) return { source: "twitter", data: [], success: false, note: "No API key" };
+
+  const results = [];
+  // Fetch up to 6 accounts in parallel (keep cost low)
+  const toFetch = handles.slice(0, 6);
+  await Promise.all(toFetch.map(async (handle) => {
+    try {
+      const clean = handle.replace("@", "");
+      const res = await fetch(
+        `https://api.twitterapi.io/twitter/user/last_tweets?userName=${clean}&maxResults=5`,
+        { headers: { "X-API-Key": apiKey, "Accept": "application/json" } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const tweets = (data?.data || data?.tweets || []).slice(0, 5);
+        tweets.forEach(t => results.push({
+          account: `@${clean}`,
+          text: t.text || t.full_text || "",
+          created_at: t.created_at || t.createdAt || ""
+        }));
       }
+    } catch (e) {}
+  }));
+
+  return { source: "twitter", data: results, success: results.length > 0 };
+}
+
+// Fetch unusual options flow via Unusual Whales API
+async function fetchUnusualWhales() {
+  const apiKey = Deno.env.get("UNUSUAL_WHALES_API_KEY");
+  if (!apiKey) return { source: "unusual_whales", data: [], success: false, note: "No API key" };
+
+  try {
+    const res = await fetch("https://api.unusualwhales.com/api/option-trades/flow-alerts?limit=30", {
+      headers: { "Authorization": `Bearer ${apiKey}`, "Accept": "application/json" }
     });
     if (res.ok) {
       const data = await res.json();
       return { source: "unusual_whales", data: data?.data?.slice(0, 20) || [], success: true };
     }
-    const errText = await res.text();
-    return { source: "unusual_whales", data: [], success: false, note: `API error ${res.status}: ${errText.slice(0, 100)}` };
+    const text = await res.text();
+    return { source: "unusual_whales", data: [], success: false, note: `HTTP ${res.status}: ${text.slice(0, 100)}` };
   } catch (e) {
     return { source: "unusual_whales", data: [], success: false, note: e.message };
   }
 }
 
-async function scrapeQuiverQuant() {
+// Fetch congressional trades via Quiver Quant API
+async function fetchQuiverQuant() {
   const apiKey = Deno.env.get("QUIVER_QUANT_API_KEY");
+  if (!apiKey) return { source: "quiver_quant", data: [], success: false, note: "No API key" };
+
   try {
     const res = await fetch("https://api.quiverquant.com/beta/bulk/congresstrading", {
-      headers: {
-        "Accept": "application/json",
-        ...(apiKey ? { "Authorization": `Token ${apiKey}` } : {})
-      }
+      headers: { "Authorization": `Token ${apiKey}`, "Accept": "application/json" }
     });
     if (res.ok) {
       const data = await res.json();
       return { source: "quiver_quant", data: data?.slice(0, 15) || [], success: true };
     }
-    const errText = await res.text();
-    return { source: "quiver_quant", data: [], success: false, note: `API error ${res.status}: ${errText.slice(0, 100)}` };
+    const text = await res.text();
+    return { source: "quiver_quant", data: [], success: false, note: `HTTP ${res.status}: ${text.slice(0, 100)}` };
   } catch (e) {
     return { source: "quiver_quant", data: [], success: false, note: e.message };
   }
@@ -61,23 +81,20 @@ Deno.serve(async (req) => {
 
     // Allow both scheduled (no auth) and manual (user auth) triggers
     let isManual = false;
-    let manualUser = null;
     try {
-      manualUser = await base44.auth.me();
+      await base44.auth.me();
       isManual = true;
-    } catch (e) {
-      // Scheduled trigger — no user auth expected
-    }
+    } catch (e) {}
 
     const today = new Date().toISOString().split("T")[0];
 
-    // Check if briefing already exists for today
+    // Check if briefing already exists for today (skip if scheduled, allow manual re-run)
     const existing = await base44.asServiceRole.entities.DailyBriefing.filter({ date: today });
     if (existing.length > 0 && !isManual) {
       return Response.json({ message: "Briefing already exists for today", briefing_id: existing[0].id });
     }
 
-    // Create a placeholder briefing with "generating" status
+    // Create placeholder briefing with "generating" status
     const briefing = await base44.asServiceRole.entities.DailyBriefing.create({
       date: today,
       status: "generating",
@@ -87,34 +104,42 @@ Deno.serve(async (req) => {
 
     // Fetch tracked sources from DB
     const trackedSources = await base44.asServiceRole.entities.TrackedSource.filter({ is_active: true });
-    const twitterHandles = trackedSources
+    const dbTwitterHandles = trackedSources
       .filter(s => s.source_type === "twitter")
-      .map(s => s.identifier);
+      .map(s => s.identifier.replace("@", ""));
 
-    const allTwitter = [...new Set([...DEFAULT_SOURCES.twitter_accounts, ...twitterHandles])];
+    const allTwitterHandles = [...new Set([...DEFAULT_TWITTER_ACCOUNTS, ...dbTwitterHandles])];
 
-    // Parallel data collection
-    const [unusualWhalesData, quiverData] = await Promise.all([
-      scrapeUnusualWhales(),
-      scrapeQuiverQuant()
+    // Parallel data collection from all 3 sources
+    const [unusualWhalesData, quiverData, twitterData] = await Promise.all([
+      fetchUnusualWhales(),
+      fetchQuiverQuant(),
+      fetchTwitterPosts(allTwitterHandles)
     ]);
 
     const rawData = {
       unusual_whales: unusualWhalesData,
       quiver_quant: quiverData,
-      twitter_accounts_monitored: allTwitter,
+      twitter: twitterData,
       collection_timestamp: new Date().toISOString()
     };
 
-    // AI Analysis — generate briefing + trade cards
+    // Build prompt with real data
     const analysisPrompt = `You are AlphaEdge, an elite options trading intelligence system for a retail trader with a <$50K account.
 
 Today's date: ${today}
 
-DATA COLLECTED:
-- Unusual Whales Flow Data: ${JSON.stringify(unusualWhalesData.data?.slice(0, 10))}
-- Congressional Trading (Quiver Quant): ${JSON.stringify(quiverData.data?.slice(0, 10))}
-- Monitored Twitter/X accounts: ${allTwitter.join(", ")}
+LIVE DATA COLLECTED:
+--- Unusual Whales Options Flow (${unusualWhalesData.success ? 'LIVE' : 'unavailable'}):
+${JSON.stringify(unusualWhalesData.data?.slice(0, 10))}
+
+--- Congressional Trades - Quiver Quant (${quiverData.success ? 'LIVE' : 'unavailable'}):
+${JSON.stringify(quiverData.data?.slice(0, 10))}
+
+--- Twitter/X Posts from monitored accounts (${twitterData.success ? 'LIVE' : 'unavailable'}):
+${twitterData.data?.slice(0, 20).map(t => `${t.account}: "${t.text}"`).join('\n')}
+
+Monitored accounts: ${allTwitterHandles.map(h => '@' + h).join(', ')}
 
 TASK: Generate a comprehensive trading intelligence briefing and 3-5 HIGH-CONVICTION option trade ideas.
 
@@ -152,7 +177,7 @@ OUTPUT FORMAT (strict JSON):
   ]
 }
 
-Use your knowledge of current market conditions, recent earnings, macro events, and typical institutional flow patterns to generate realistic, actionable trade ideas. Factor in the monitored sources. Only include ideas with conviction score >= 7.`;
+Only include trade ideas with conviction_score >= 7. Use the live data above as primary signal, supplemented by your market knowledge.`;
 
     const aiResponse = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: analysisPrompt,
@@ -189,7 +214,7 @@ Use your knowledge of current market conditions, recent earnings, macro events, 
       }
     });
 
-    // Update the briefing with AI results
+    // Update briefing with results
     await base44.asServiceRole.entities.DailyBriefing.update(briefing.id, {
       status: "complete",
       market_posture: aiResponse.market_posture || "neutral",
@@ -198,13 +223,18 @@ Use your knowledge of current market conditions, recent earnings, macro events, 
       political_trades_summary: aiResponse.political_trades_summary || "",
       fintwit_summary: aiResponse.fintwit_summary || "",
       macro_summary: aiResponse.macro_summary || "",
-      sources_used: ["unusual_whales", "quiver_quant", "twitter_x", ...allTwitter.slice(0, 5)],
+      sources_used: [
+        unusualWhalesData.success ? "unusual_whales_live" : "unusual_whales_ai",
+        quiverData.success ? "quiver_quant_live" : "quiver_quant_ai",
+        twitterData.success ? "twitter_live" : "twitter_ai",
+        ...allTwitterHandles.slice(0, 6).map(h => "@" + h)
+      ],
       raw_data: rawData
     });
 
     // Create trade cards
     const tradeIdeas = (aiResponse.trade_ideas || []).filter(t => t.conviction_score >= 7);
-    const tradeCardPromises = tradeIdeas.map(trade =>
+    await Promise.all(tradeIdeas.map(trade =>
       base44.asServiceRole.entities.TradeCard.create({
         briefing_id: briefing.id,
         date: today,
@@ -222,15 +252,18 @@ Use your knowledge of current market conditions, recent earnings, macro events, 
         catalyst: trade.catalyst,
         outcome_status: "open"
       })
-    );
-
-    await Promise.all(tradeCardPromises);
+    ));
 
     return Response.json({
       success: true,
       briefing_id: briefing.id,
       trades_generated: tradeIdeas.length,
-      market_posture: aiResponse.market_posture
+      market_posture: aiResponse.market_posture,
+      data_sources: {
+        unusual_whales: unusualWhalesData.success ? "live" : "ai_fallback",
+        quiver_quant: quiverData.success ? "live" : "ai_fallback",
+        twitter: twitterData.success ? `live (${twitterData.data.length} tweets)` : "ai_fallback"
+      }
     });
 
   } catch (error) {
