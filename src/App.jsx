@@ -11,6 +11,7 @@ import Trades from '@/pages/Trades';
 import History from '@/pages/History';
 import Sources from '@/pages/Sources';
 import Settings from '@/pages/Settings';
+import Performance from '@/pages/Performance';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -40,6 +41,7 @@ const AuthenticatedApp = () => {
         <Route path="/history" element={<History />} />
         <Route path="/sources" element={<Sources />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/performance" element={<Performance />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
