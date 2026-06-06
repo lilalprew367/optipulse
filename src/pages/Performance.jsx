@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import PerformanceStats from '@/components/performance/PerformanceStats';
 import TradesTable from '@/components/performance/TradesTable';
 import AIReview from '@/components/performance/AIReview';
+import TradingViewChart from '@/components/TradingViewChart';
 
 export default function Performance() {
   const [trades, setTrades] = useState([]);
@@ -150,6 +151,12 @@ Be direct, honest, and specific. Reference actual tickers and trades from the da
 
       {/* Stats */}
       <PerformanceStats trades={trades} loading={loading} />
+
+      {/* Market Overview Chart */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <TradingViewChart ticker="SPY" height={260} defaultInterval="W" />
+        <TradingViewChart ticker="QQQ" height={260} defaultInterval="W" />
+      </div>
 
       {/* AI Review */}
       {(aiReview || reviewing) && (

@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MarketPostureBadge from '@/components/MarketPostureBadge';
 import TradeCardComponent from '@/components/TradeCardComponent';
+import TradingViewChart from '@/components/TradingViewChart';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -93,6 +94,9 @@ export default function LiveThesis() {
           {briefing.market_posture && (
             <MarketPostureBadge posture={briefing.market_posture} size="lg" />
           )}
+
+          {/* Market Overview Chart — SPY as proxy for overall posture */}
+          <TradingViewChart ticker="SPY" height={220} defaultInterval="D" />
 
           {/* Thesis narrative */}
           {briefing.narrative && (

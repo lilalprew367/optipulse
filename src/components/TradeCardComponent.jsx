@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { TrendingUp, TrendingDown, Star, Clock, Target, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import TradingViewChart from '@/components/TradingViewChart';
 
 const horizonColors = {
   'intraday': 'bg-orange-500/10 text-orange-400 border-orange-500/20',
@@ -140,6 +141,11 @@ export default function TradeCardComponent({ trade, onUpdate }) {
         {/* Expanded Content */}
         {expanded && (
           <div className="mt-4 pt-4 border-t border-border space-y-3" onClick={e => e.stopPropagation()}>
+            {/* Mini chart for this ticker */}
+            {trade.ticker && (
+              <TradingViewChart ticker={trade.ticker} height={200} defaultInterval="D" />
+            )}
+
             {trade.catalyst && (
               <div className="flex gap-2">
                 <Target className="w-3.5 h-3.5 text-primary mt-0.5 flex-shrink-0" />
