@@ -21,67 +21,98 @@ Deno.serve(async (req) => {
     const flowSignals = recentSignals.filter(s => s.signal_type === 'options_flow');
     const politicalSignals = recentSignals.filter(s => s.signal_type === 'political_trade');
 
-    const prompt = `You are AlphaEdge, an elite options trading intelligence system for a retail trader with <$50K account.
+    const prompt = `You are AlphaEdge, an elite options trading intelligence system. Your ONLY job is to surface the highest-conviction, most actionable options setups for a retail trader with a sub-$50K account. Be ruthlessly selective.
 
 Current time: ${new Date().toISOString()}
 
 RECENT SIGNALS (last 2 hours):
 
-=== TWEETS FROM MONITORED FINTWIT ACCOUNTS (${tweetSignals.length} signals) ===
+=== FINTWIT TWEETS (${tweetSignals.length} signals) ===
 ${tweetSignals.slice(0, 30).map(s => `[${s.signal_time}] ${s.source}: "${s.content}"`).join('\n')}
 
 === OPTIONS FLOW (${flowSignals.length} signals) ===
 ${flowSignals.slice(0, 20).map(s => `[${s.signal_time}] ${s.content}`).join('\n')}
 
-=== POLITICAL TRADES (${politicalSignals.length} signals) ===
+=== POLITICAL/INSIDER TRADES (${politicalSignals.length} signals) ===
 ${politicalSignals.slice(0, 15).map(s => `[${s.signal_time}] ${s.content}`).join('\n')}
 
+===================================================================
+ANALYSIS RULES — FOLLOW STRICTLY:
+===================================================================
+
+SIGNAL CONVERGENCE: Only generate a trade idea when 2+ independent signal types align on the same ticker/thesis (e.g., unusual flow + FinTwit mention + political buy = very high conviction). Single-source ideas should be scored lower and only included if extraordinarily strong.
+
+LIQUIDITY FILTER (hard gate — reject anything that fails):
+- Only well-known, heavily traded names: SPY, QQQ, AAPL, NVDA, MSFT, AMZN, TSLA, META, GOOGL, AMD, NFLX, JPM, GS, BAC, XLF, XLK, IWM, etc.
+- Avoid micro-caps, thinly traded stocks, or names with wide bid/ask spreads.
+- No 0DTE plays. Minimum 3 weeks to expiry.
+
+STRIKE SELECTION:
+- Calls: 5-10% OTM for aggressive, ATM for moderate, slightly ITM for conservative.
+- Puts: 5-10% OTM for aggressive, ATM for moderate.
+- Always suggest a specific strike price based on current approximate levels.
+
+EXPIRY: Prefer 30-60 DTE for weeklies/monthlies. Max 90 DTE. State exact month and approximate date.
+
+POSITION SIZING (mandatory):
+- Max risk per trade: $500-$1,500 for a <$50K account (1-3% max risk).
+- Suggest number of contracts based on estimated premium (e.g., "$800 risk = 2 contracts at ~$4.00 premium").
+- Never suggest more than $1,500 total at risk on a single idea.
+
+CONVICTION SCORING (be honest, don't inflate):
+- 10: Extraordinary — multiple strong signals, clear catalyst, liquid name, perfect setup
+- 9: Excellent — strong multi-signal convergence
+- 8: Good — solid signal(s), clear thesis, liquid name
+- 7: Marginal — include only if setup is unusually clean
+- Below 7: DO NOT include
+
+THESIS QUALITY: Each trade idea must have:
+1. Clear "why now" catalyst
+2. Which specific signals from the feed are supporting it
+3. What invalidates the trade (stop-loss logic)
+
+===================================================================
 TASKS:
-1. Identify any HIGH-CONVICTION signals (score 8+/10) that warrant immediate alerts — these could fire outside market hours
-2. Generate updated market thesis based on all signals
-3. Generate 0-3 trade ideas with conviction 7+ only
+1. Fire high-conviction alerts for any 8+ signals worth noting immediately
+2. Update market posture and thesis
+3. Output 0-3 trade ideas (quality over quantity — 0 is valid if nothing clears the bar)
 
-RISK PROFILE:
-- Account: <$50K retail
-- Options with 1-3 month expiry preferred
-- Defined risk, liquid options only
-- Max position: $500-1500
-
-OUTPUT FORMAT (strict JSON):
+OUTPUT — STRICT JSON, NO PROSE OUTSIDE JSON:
 {
   "market_posture": "bullish|bearish|neutral|cautiously_bullish|cautiously_bearish",
-  "thesis": "2-3 paragraph updated thesis based on recent signals",
+  "thesis": "2-3 paragraph thesis grounded in the actual signals above",
   "macro_summary": "1-2 sentences on macro backdrop",
   "high_conviction_alerts": [
     {
-      "title": "Short alert headline (max 10 words)",
-      "body": "1-2 sentence explanation of why this is significant",
+      "title": "Concise alert headline (max 10 words)",
+      "body": "1-2 sentences on why this signal is significant right now",
       "alert_type": "high_conviction_tweet|high_conviction_trade|political_trade|options_spike",
       "ticker": "TICKER or null",
       "conviction_score": 9,
-      "source_content": "the exact signal content that triggered this"
+      "source_content": "exact signal text that triggered this alert"
     }
   ],
   "trade_ideas": [
     {
       "ticker": "TICKER",
       "direction": "call|put",
-      "strike": "price",
-      "expiry": "month year",
-      "entry_range": "$X.XX - $X.XX",
+      "strike": "exact strike price (e.g. 195)",
+      "expiry": "e.g. Jul 18 2025",
+      "entry_range": "$X.XX - $X.XX (estimated premium range)",
+      "position_size": "e.g. 2 contracts (~$900 total risk)",
+      "risk_reward": "e.g. 1:3 (risk $900 to make ~$2700)",
       "conviction_score": 8,
-      "time_horizon": "1-3 months",
-      "thesis": "2-3 sentence trade thesis",
-      "supporting_sources": ["source1"],
+      "time_horizon": "weekly|monthly|1-3 months",
+      "thesis": "3-4 sentences: why this trade, what signals support it, what invalidates it",
+      "supporting_sources": ["exact source handles or signal types from the feed"],
       "risk_level": "low|medium|high",
       "sector": "Sector",
-      "catalyst": "Key catalyst"
+      "catalyst": "Specific upcoming catalyst or reason for near-term move"
     }
   ]
 }
 
-Only include high_conviction_alerts for genuinely noteworthy signals. Empty arrays are fine if nothing stands out.
-Only include trade_ideas with conviction 7+.`;
+REMINDER: Return ONLY the JSON object. No commentary before or after. Empty arrays for alerts/trades are acceptable and preferred over low-quality entries.`;
 
     const aiResponse = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
@@ -115,6 +146,8 @@ Only include trade_ideas with conviction 7+.`;
                 strike: { type: "string" },
                 expiry: { type: "string" },
                 entry_range: { type: "string" },
+                position_size: { type: "string" },
+                risk_reward: { type: "string" },
                 conviction_score: { type: "number" },
                 time_horizon: { type: "string" },
                 thesis: { type: "string" },
@@ -166,7 +199,7 @@ Only include trade_ideas with conviction 7+.`;
     ));
 
     // Save new trade ideas (conviction 7+)
-    const tradeIdeas = (aiResponse.trade_ideas || []).filter(t => t.conviction_score >= 7);
+    const tradeIdeas = (aiResponse.trade_ideas || []).filter(t => t.conviction_score >= 8);
     await Promise.all(tradeIdeas.map(trade =>
       base44.asServiceRole.entities.TradeCard.create({
         briefing_id: briefingId,
@@ -178,7 +211,7 @@ Only include trade_ideas with conviction 7+.`;
         entry_range: trade.entry_range,
         conviction_score: trade.conviction_score,
         time_horizon: trade.time_horizon,
-        thesis: trade.thesis,
+        thesis: `${trade.thesis}${trade.position_size ? `\n\nPosition: ${trade.position_size}` : ''}${trade.risk_reward ? ` | R/R: ${trade.risk_reward}` : ''}`,
         supporting_sources: trade.supporting_sources || [],
         risk_level: trade.risk_level,
         sector: trade.sector,
