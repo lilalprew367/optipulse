@@ -66,26 +66,47 @@ async function fetchUnusualWhales() {
   }
 }
 
-// Fetch congressional trades via Quiver Quant API
+// Fetch all major Quiver Quant datasets sequentially to respect rate limits
 async function fetchQuiverQuant() {
   const apiKey = Deno.env.get("QUIVER_QUANT_API_KEY");
-  if (!apiKey) return { source: "quiver_quant", data: [], success: false, note: "No API key" };
+  if (!apiKey) return { source: "quiver_quant", congress: [], senate: [], house: [], insiders: [], hedgeFunds: [], success: false, note: "No API key" };
 
-  try {
-    const res = await fetch("https://api.quiverquant.com/beta/bulk/congresstrading", {
-      headers: { "Authorization": `Token ${apiKey}`, "Accept": "application/json" }
-    });
-    const text = await res.text();
-    console.log(`[QuiverQuant] HTTP ${res.status}: ${text.slice(0, 300)}`);
-    if (res.ok) {
-      const data = JSON.parse(text);
-      return { source: "quiver_quant", data: data?.slice(0, 15) || [], success: true };
+  const qqHeaders = { "Authorization": `Token ${apiKey}`, "Accept": "application/json" };
+
+  async function fetchEndpoint(endpoint) {
+    try {
+      const res = await fetch(`https://api.quiverquant.com/beta/bulk/${endpoint}`, { headers: qqHeaders });
+      const text = await res.text();
+      console.log(`[QuiverQuant] ${endpoint} HTTP ${res.status}: ${text.slice(0, 200)}`);
+      if (res.ok) return JSON.parse(text);
+      return [];
+    } catch (e) {
+      console.log(`[QuiverQuant] ${endpoint} error: ${e.message}`);
+      return [];
     }
-    return { source: "quiver_quant", data: [], success: false, note: `HTTP ${res.status}: ${text.slice(0, 100)}` };
-  } catch (e) {
-    console.log(`[QuiverQuant] error: ${e.message}`);
-    return { source: "quiver_quant", data: [], success: false, note: e.message };
   }
+
+  // Sequential fetches with delays to avoid rate limiting
+  const congress = await fetchEndpoint("congresstrading");
+  await new Promise(r => setTimeout(r, 400));
+  const senate = await fetchEndpoint("senatetrading");
+  await new Promise(r => setTimeout(r, 400));
+  const house = await fetchEndpoint("housetrading");
+  await new Promise(r => setTimeout(r, 400));
+  const insiders = await fetchEndpoint("insidertrading");
+  await new Promise(r => setTimeout(r, 400));
+  const hedgeFunds = await fetchEndpoint("hedgefunds13f");
+
+  const anySuccess = congress.length > 0 || senate.length > 0 || insiders.length > 0 || hedgeFunds.length > 0;
+  return {
+    source: "quiver_quant",
+    congress: congress.slice(0, 10),
+    senate: senate.slice(0, 8),
+    house: house.slice(0, 8),
+    insiders: insiders.slice(0, 12),
+    hedgeFunds: hedgeFunds.slice(0, 12),
+    success: anySuccess
+  };
 }
 
 const SUBSTACK_FEEDS = [
@@ -216,8 +237,20 @@ LIVE DATA COLLECTED:
 --- Unusual Whales Options Flow (${unusualWhalesData.success ? 'LIVE' : 'unavailable'}):
 ${JSON.stringify(unusualWhalesData.data?.slice(0, 10))}
 
---- Congressional Trades - Quiver Quant (${quiverData.success ? 'LIVE' : 'unavailable'}):
-${JSON.stringify(quiverData.data?.slice(0, 10))}
+--- Congressional Trades (${quiverData.success ? 'LIVE' : 'unavailable'}):
+${JSON.stringify(quiverData.congress)}
+
+--- Senate Trades (${quiverData.success ? 'LIVE' : 'unavailable'}):
+${JSON.stringify(quiverData.senate)}
+
+--- House Trades (${quiverData.success ? 'LIVE' : 'unavailable'}):
+${JSON.stringify(quiverData.house)}
+
+--- Insider Trades - C-Suite (${quiverData.success ? 'LIVE' : 'unavailable'}):
+${JSON.stringify(quiverData.insiders)}
+
+--- Hedge Fund 13F Filings (${quiverData.success ? 'LIVE' : 'unavailable'}):
+${JSON.stringify(quiverData.hedgeFunds)}
 
 --- Twitter/X Posts from monitored accounts (${twitterData.success ? 'LIVE' : 'unavailable'}):
 ${twitterData.data?.slice(0, 20).map(t => `${t.account}: "${t.text}"`).join('\n')}
@@ -231,6 +264,15 @@ ${substackData.map(p => `[${p.source}] "${p.title}" — ${p.summary}`).join('\n'
 ${newsData.map(n => `[${n.source}] "${n.title}" — ${n.summary}`).join('\n')}
 
 TWITTER SIGNAL FILTER: Focus heavily on high-conviction tweets that mention specific tickers, strikes, expiry, entry ideas, or clear theses. Prioritize posts with language like "sized in", "high conviction", "loading", "thesis", or risk discussion. Aggressively filter out vague hype, memes, self-promo, and low-substance noise. Only surface ideas with real edge when combined with options flow or political data.
+
+HEDGE FUND 13F WEIGHTING (HIGHEST INSTITUTIONAL SIGNAL):
+A hedge fund adding a significant position is one of the strongest bullish signals. When a hedge fund buy aligns with unusual options flow on the same ticker, treat as near-maximum conviction (+2 to score). Tier-1 funds (Bridgewater, Citadel, Point72, Millennium, Renaissance, Tiger, etc.) carry more weight. Exits/reductions are bearish signals.
+
+INSIDER TRADE WEIGHTING (VERY STRONG SIGNAL):
+C-suite insider BUYS are among the most reliable bullish signals — insiders only buy when they have genuine conviction. Prioritize CEO, CFO, COO, Director buys. Large amounts (>$500K) are especially meaningful. Insider buys + unusual options flow = very high conviction (+1 to score). Insider SELLS are weak unless multiple C-suite members selling simultaneously.
+
+POLITICAL TRADE WEIGHTING:
+Congressional trades (Senate + House combined) are meaningful but secondary to hedge fund and insider signals. Cross-party buys on the same ticker are stronger than single-party activity.
 
 SUBSTACK WEIGHTING: Long-form Substack theses (Doomberg, The Diff, Phenom Capital, etc.) represent deep independent research. When a Substack thesis aligns with unusual options flow AND/OR FinTwit conviction on the same ticker or macro theme, treat it as a strong corroborating signal — worth +1 to conviction score. A Substack piece alone is not a trade trigger, but in combination with flow or political data it significantly elevates conviction. Quote the publication name and thesis angle when referencing.
 
@@ -349,7 +391,7 @@ Only include trade ideas with conviction_score >= 8. Quality over quantity — 0
       macro_summary: aiResponse.macro_summary || "",
       sources_used: [
         unusualWhalesData.success ? "unusual_whales_live" : "unusual_whales_ai",
-        quiverData.success ? "quiver_quant_live" : "quiver_quant_ai",
+        quiverData.success ? "quiver_quant_live (congress+senate+house+insiders+hedgefunds)" : "quiver_quant_ai",
         twitterData.success ? "twitter_live" : "twitter_ai",
         substackData.length > 0 ? "substack_live" : "substack_unavailable",
         newsData.length > 0 ? "news_live" : "news_unavailable",
