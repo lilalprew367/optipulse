@@ -11,26 +11,33 @@ async function fetchTwitterPosts(handles) {
   if (!apiKey) return { source: "twitter", data: [], success: false, note: "No API key" };
 
   const results = [];
-  // Fetch up to 6 accounts in parallel (keep cost low)
-  const toFetch = handles.slice(0, 6);
-  await Promise.all(toFetch.map(async (handle) => {
+  // Free tier: 1 req per 5s — fetch sequentially with delay, max 5 accounts
+  const toFetch = handles.slice(0, 5);
+  for (const handle of toFetch) {
     try {
       const clean = handle.replace("@", "");
-      const res = await fetch(
-        `https://api.twitterapi.io/twitter/user/last_tweets?userName=${clean}&maxResults=5`,
-        { headers: { "X-API-Key": apiKey, "Accept": "application/json" } }
-      );
+      const url = `https://api.twitterapi.io/twitter/user/last_tweets?userName=${clean}`;
+      const res = await fetch(url, {
+        headers: { "X-API-Key": apiKey, "Accept": "application/json" }
+      });
+      const responseText = await res.text();
+      console.log(`[Twitter] @${clean} → HTTP ${res.status}: ${responseText.slice(0, 200)}`);
       if (res.ok) {
-        const data = await res.json();
-        const tweets = (data?.data || data?.tweets || []).slice(0, 5);
+        const data = JSON.parse(responseText);
+        // Response is nested under data.tweets
+        const tweets = (data?.data?.tweets || data?.tweets || []).slice(0, 5);
         tweets.forEach(t => results.push({
           account: `@${clean}`,
-          text: t.text || t.full_text || "",
-          created_at: t.created_at || t.createdAt || ""
+          text: t.text || "",
+          created_at: t.createdAt || ""
         }));
       }
-    } catch (e) {}
-  }));
+    } catch (e) {
+      console.log(`[Twitter] @${handle} error: ${e.message}`);
+    }
+    // Wait 6 seconds between requests to respect free-tier rate limit
+    await new Promise(r => setTimeout(r, 6000));
+  }
 
   return { source: "twitter", data: results, success: results.length > 0 };
 }
@@ -44,13 +51,15 @@ async function fetchUnusualWhales() {
     const res = await fetch("https://api.unusualwhales.com/api/option-trades/flow-alerts?limit=30", {
       headers: { "Authorization": `Bearer ${apiKey}`, "Accept": "application/json" }
     });
+    const text = await res.text();
+    console.log(`[UnusualWhales] HTTP ${res.status}: ${text.slice(0, 300)}`);
     if (res.ok) {
-      const data = await res.json();
+      const data = JSON.parse(text);
       return { source: "unusual_whales", data: data?.data?.slice(0, 20) || [], success: true };
     }
-    const text = await res.text();
     return { source: "unusual_whales", data: [], success: false, note: `HTTP ${res.status}: ${text.slice(0, 100)}` };
   } catch (e) {
+    console.log(`[UnusualWhales] error: ${e.message}`);
     return { source: "unusual_whales", data: [], success: false, note: e.message };
   }
 }
@@ -64,13 +73,15 @@ async function fetchQuiverQuant() {
     const res = await fetch("https://api.quiverquant.com/beta/bulk/congresstrading", {
       headers: { "Authorization": `Token ${apiKey}`, "Accept": "application/json" }
     });
+    const text = await res.text();
+    console.log(`[QuiverQuant] HTTP ${res.status}: ${text.slice(0, 300)}`);
     if (res.ok) {
-      const data = await res.json();
+      const data = JSON.parse(text);
       return { source: "quiver_quant", data: data?.slice(0, 15) || [], success: true };
     }
-    const text = await res.text();
     return { source: "quiver_quant", data: [], success: false, note: `HTTP ${res.status}: ${text.slice(0, 100)}` };
   } catch (e) {
+    console.log(`[QuiverQuant] error: ${e.message}`);
     return { source: "quiver_quant", data: [], success: false, note: e.message };
   }
 }
