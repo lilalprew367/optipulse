@@ -153,15 +153,32 @@ ${twitterData.data?.slice(0, 20).map(t => `${t.account}: "${t.text}"`).join('\n'
 
 Monitored accounts: ${allTwitterHandles.map(h => '@' + h).join(', ')}
 
-TASK: Generate a comprehensive trading intelligence briefing and 3-5 HIGH-CONVICTION option trade ideas.
+TASK: Aggressively filter for HIGH-CONVICTION signals only.
+
+SIGNAL QUALITY FILTER — apply before generating any trade idea:
+✅ INCLUDE signals that have: specific ticker + strike/expiry + clear thesis or catalyst + risk discussion
+✅ INCLUDE signals confirmed by 2+ independent data sources (e.g., unusual flow + congressional buy + FinTwit mention)
+❌ DISCARD: hype, memes, "to the moon", vague sentiment, paid promo language, no price levels, no catalyst
+❌ DISCARD: single-source signals with no corroborating flow or political data
+❌ DISCARD: illiquid names, micro-caps, or anything with wide bid/ask spreads
+
+CONVICTION GATE — mandatory hard filter:
+- Minimum conviction score to include a trade: 8/10
+- Below 8 = do not include, even if setup looks decent
+- 0 trade ideas is a valid and preferred output over padding with weak setups
 
 RISK PROFILE:
 - Account size: <$50K retail trader
-- Focus: Options with 1-3 month expiry
-- Style: High conviction only (score 7+ out of 10)
-- Risk: Defined risk plays, liquid options only
-- NO 0DTE plays unless extreme conviction
-- Max suggested position: $500-1500 per trade
+- Focus: Options with 1-3 month expiry (30–90 DTE preferred)
+- Liquid names only: SPY, QQQ, AAPL, NVDA, MSFT, AMZN, TSLA, META, GOOGL, AMD, NFLX, JPM, GS, BAC, XLF, XLK, IWM, and similar large-caps
+- Defined risk plays only — long calls/puts, no naked positions
+- NO 0DTE plays
+- Max position risk: $500–$1,500 per trade (suggest contracts accordingly)
+
+CONFLUENCE SCORING (use this to set conviction_score):
+- 1 signal source only → max score 7 (do not include)
+- 2 sources aligned → score 8 possible
+- 3+ sources aligned with clear catalyst → score 9–10
 
 OUTPUT FORMAT (strict JSON):
 {
@@ -189,7 +206,7 @@ OUTPUT FORMAT (strict JSON):
   ]
 }
 
-Only include trade ideas with conviction_score >= 7. Use the live data above as primary signal, supplemented by your market knowledge.`;
+Only include trade ideas with conviction_score >= 8. Quality over quantity — 0 ideas is better than weak ones. Use the live data above as primary signal, supplemented by your market knowledge.`;
 
     const aiResponse = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: analysisPrompt,
@@ -245,7 +262,7 @@ Only include trade ideas with conviction_score >= 7. Use the live data above as 
     });
 
     // Create trade cards
-    const tradeIdeas = (aiResponse.trade_ideas || []).filter(t => t.conviction_score >= 7);
+    const tradeIdeas = (aiResponse.trade_ideas || []).filter(t => t.conviction_score >= 8);
     await Promise.all(tradeIdeas.map(trade =>
       base44.asServiceRole.entities.TradeCard.create({
         briefing_id: briefing.id,
