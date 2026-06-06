@@ -16,30 +16,43 @@ const DEFAULT_SOURCES = {
 };
 
 async function scrapeUnusualWhales() {
+  const apiKey = Deno.env.get("UNUSUAL_WHALES_API_KEY");
   try {
     const res = await fetch("https://api.unusualwhales.com/api/option-trades/flow-alerts?limit=50", {
-      headers: { "Accept": "application/json" }
+      headers: {
+        "Accept": "application/json",
+        ...(apiKey ? { "Authorization": `Bearer ${apiKey}` } : {})
+      }
     });
     if (res.ok) {
       const data = await res.json();
       return { source: "unusual_whales", data: data?.data?.slice(0, 20) || [], success: true };
     }
-  } catch (e) {}
-  // Fallback: use web search context
-  return { source: "unusual_whales", data: [], success: false, note: "API unavailable, using AI context" };
+    const errText = await res.text();
+    return { source: "unusual_whales", data: [], success: false, note: `API error ${res.status}: ${errText.slice(0, 100)}` };
+  } catch (e) {
+    return { source: "unusual_whales", data: [], success: false, note: e.message };
+  }
 }
 
 async function scrapeQuiverQuant() {
+  const apiKey = Deno.env.get("QUIVER_QUANT_API_KEY");
   try {
     const res = await fetch("https://api.quiverquant.com/beta/bulk/congresstrading", {
-      headers: { "Accept": "application/json" }
+      headers: {
+        "Accept": "application/json",
+        ...(apiKey ? { "Authorization": `Token ${apiKey}` } : {})
+      }
     });
     if (res.ok) {
       const data = await res.json();
       return { source: "quiver_quant", data: data?.slice(0, 15) || [], success: true };
     }
-  } catch (e) {}
-  return { source: "quiver_quant", data: [], success: false, note: "API unavailable, using AI context" };
+    const errText = await res.text();
+    return { source: "quiver_quant", data: [], success: false, note: `API error ${res.status}: ${errText.slice(0, 100)}` };
+  } catch (e) {
+    return { source: "quiver_quant", data: [], success: false, note: e.message };
+  }
 }
 
 Deno.serve(async (req) => {
