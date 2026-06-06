@@ -1,0 +1,45 @@
+{
+  "name": "Alert",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Alert headline"
+    },
+    "body": {
+      "type": "string",
+      "description": "Alert detail"
+    },
+    "alert_type": {
+      "type": "string",
+      "enum": [
+        "high_conviction_trade",
+        "high_conviction_tweet",
+        "political_trade",
+        "options_spike"
+      ],
+      "description": "Type of alert"
+    },
+    "ticker": {
+      "type": "string",
+      "description": "Related ticker if applicable"
+    },
+    "is_read": {
+      "type": "boolean",
+      "default": false
+    },
+    "source_signal_id": {
+      "type": "string",
+      "description": "Reference to IntelFeed record"
+    },
+    "conviction_score": {
+      "type": "number",
+      "description": "Conviction score 1-10"
+    }
+  },
+  "required": [
+    "title",
+    "body",
+    "alert_type"
+  ]
+}

@@ -1,6 +1,7 @@
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { BarChart2, Zap, History, BookOpen, Settings, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import AlertBell from '@/components/AlertBell';
 
 const navItems = [
   { icon: Zap, label: 'Today', path: '/' },
@@ -55,9 +56,12 @@ export default function Layout() {
 
         {/* Footer */}
         <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-bullish animate-pulse" />
-            <span className="text-xs text-muted-foreground font-mono">LIVE</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-bullish animate-pulse" />
+              <span className="text-xs text-muted-foreground font-mono">LIVE</span>
+            </div>
+            <AlertBell />
           </div>
         </div>
       </aside>

@@ -1,0 +1,53 @@
+{
+  "name": "IntelFeed",
+  "type": "object",
+  "properties": {
+    "signal_type": {
+      "type": "string",
+      "enum": [
+        "tweet",
+        "options_flow",
+        "political_trade"
+      ],
+      "description": "Type of signal"
+    },
+    "source": {
+      "type": "string",
+      "description": "Source handle, ticker, or politician name"
+    },
+    "content": {
+      "type": "string",
+      "description": "Raw content of the signal"
+    },
+    "ticker": {
+      "type": "string",
+      "description": "Related ticker if applicable"
+    },
+    "signal_id": {
+      "type": "string",
+      "description": "Unique external ID for deduplication"
+    },
+    "signal_time": {
+      "type": "string",
+      "description": "When the signal occurred (ISO string)"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Raw data from the source"
+    },
+    "conviction_flag": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether AI flagged this as high conviction"
+    },
+    "conviction_note": {
+      "type": "string",
+      "description": "Short AI note on why this is high conviction"
+    }
+  },
+  "required": [
+    "signal_type",
+    "source",
+    "content"
+  ]
+}
