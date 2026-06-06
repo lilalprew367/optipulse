@@ -1,10 +1,11 @@
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { BarChart2, Zap, History, BookOpen, Settings, TrendingUp, LineChart } from 'lucide-react';
+import { BarChart2, Zap, History, BookOpen, Settings, TrendingUp, LineChart, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import AlertBell from '@/components/AlertBell';
 
 const navItems = [
   { icon: Zap, label: 'Today', path: '/' },
+  { icon: Target, label: 'Alerts', path: '/alerts' },
   { icon: TrendingUp, label: 'Trades', path: '/trades' },
   { icon: LineChart, label: 'Performance', path: '/performance' },
   { icon: History, label: 'History', path: '/history' },

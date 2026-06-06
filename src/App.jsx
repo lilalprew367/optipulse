@@ -12,6 +12,7 @@ import History from '@/pages/History';
 import Sources from '@/pages/Sources';
 import Settings from '@/pages/Settings';
 import Performance from '@/pages/Performance';
+import Alerts from '@/pages/Alerts';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -42,6 +43,7 @@ const AuthenticatedApp = () => {
         <Route path="/sources" element={<Sources />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/performance" element={<Performance />} />
+        <Route path="/alerts" element={<Alerts />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
