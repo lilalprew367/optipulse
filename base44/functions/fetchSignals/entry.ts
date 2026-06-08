@@ -109,10 +109,45 @@ Deno.serve(async (req) => {
     const newSignals = [];
     const savedCount = { tweets: 0, options: 0, political: 0 };
 
-    // --- TWITTER ---
-    // Tweets now arrive via webhook from stream subscription (no polling needed)
-    // Webhook endpoint: functions/twitterWebhook
-    console.log('[Twitter] Stream subscription active - tweets arrive via webhook');
+    // --- TWITTER (poll as primary source; webhook is bonus if configured) ---
+    if (twitterApiKey) {
+      const handles = TWITTER_ACCOUNTS;
+      await Promise.all(handles.map(async (handle) => {
+        try {
+          const clean = handle.replace('@', '');
+          const url = `https://api.twitterapi.io/twitter/user/last_tweets?userName=${clean}`;
+          const res = await fetch(url, {
+            headers: { 'X-API-Key': twitterApiKey, 'Accept': 'application/json' }
+          });
+          if (!res.ok) {
+            console.log(`[Twitter] @${clean} HTTP ${res.status}`);
+            return;
+          }
+          const data = await res.json();
+          const tweets = (data?.data?.tweets || data?.tweets || []).slice(0, 5);
+          for (const t of tweets) {
+            const tweetId = t.id || t.tweet_id;
+            if (!tweetId) continue;
+            const text = t.text || t.full_text || '';
+            const createdAt = t.createdAt || t.created_at || new Date().toISOString();
+            newSignals.push({
+              signal_type: 'tweet',
+              source: `@${clean}`,
+              content: text,
+              ticker: (text.match(/\$([A-Z]{1,5})\b/)?.[1]) || null,
+              signal_id: `tweet_${tweetId}`,
+              signal_time: new Date(createdAt).toISOString(),
+              metadata: { tweet_id: tweetId, screen_name: clean }
+            });
+          }
+        } catch (e) {
+          console.log(`[Twitter] @${handle} error: ${e.message}`);
+        }
+      }));
+      console.log(`[Twitter] Polled ${handles.length} accounts, found ${newSignals.filter(s => s.signal_type === 'tweet').length} tweets`);
+    } else {
+      console.log('[Twitter] No API key — skipping');
+    }
 
     // --- OPTIONS FLOW (market hours only) ---
     if (uwApiKey && isMarketHours()) {
