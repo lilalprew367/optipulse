@@ -425,67 +425,47 @@ Only include trade ideas with conviction_score >= 8. Quality over quantity — 0
 
     // Send daily briefing summary via Telegram to users who enabled it
     try {
-      const allUsers = await base44.asServiceRole.entities.User.filter({});
+      const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+      if (!botToken) throw new Error('TELEGRAM_BOT_TOKEN not set');
+
+      const allUsers = await base44.asServiceRole.entities.User.list();
       const optedInUsers = allUsers.filter(u => u.telegram_chat_id && u.telegram_daily_briefing === true);
 
       if (optedInUsers.length === 0) {
         console.log('[Telegram] No users opted in for daily briefing');
       } else {
-        const postureEmoji = {
-          bullish: '📈',
-          bearish: '📉',
-          neutral: '➡️',
-          cautiously_bullish: '📊',
-          cautiously_bearish: '📊'
-        }[aiResponse.market_posture] || '📊';
-
-        const briefingUrl = 'https://alphaedge.app/';
-        const tradesText = tradeIdeas.length > 0 
-          ? `${tradeIdeas.length} trade idea${tradeIdeas.length > 1 ? 's' : ''} (${tradeIdeas.map(t => t.ticker).join(', ')})`
+        const emoji = aiResponse.market_posture === 'bullish' ? '🟢' : aiResponse.market_posture === 'bearish' ? '🔴' : '🟡';
+        const tradesText = tradeIdeas.length > 0
+          ? `${tradeIdeas.length} high-conviction setup${tradeIdeas.length > 1 ? 's' : ''}\n` +
+            tradeIdeas.slice(0, 3).map(t => `• ${t.ticker} ${t.direction.toUpperCase()} (${t.conviction_score}/10)`).join('\n')
           : 'No trades today';
 
-        const message = `${postureEmoji} <b>AlphaEdge Daily Briefing</b> — ${today}\n\n` +
-          `<b>Market Posture:</b> ${aiResponse.market_posture.replace('_', ' ').toUpperCase()}\n\n` +
+        const message = `${emoji} <b>AlphaEdge Daily Briefing</b> — ${today}\n\n` +
+          `<b>Market Posture:</b> ${aiResponse.market_posture.replace(/_/g, ' ').toUpperCase()}\n\n` +
           `<b>Summary:</b> ${(aiResponse.narrative || '').slice(0, 300)}...\n\n` +
-          `<b>Trade Ideas:</b> ${tradesText}\n\n` +
-          `<b>Flow:</b> ${aiResponse.options_flow_summary?.slice(0, 150) || 'See app'}\n\n` +
-          `Read full briefing: ${briefingUrl}`;
+          `<b>Trade Ideas:</b>\n${tradesText}\n\n` +
+          `<b>Options Flow:</b> ${aiResponse.options_flow_summary?.slice(0, 150) || 'See app'}\n\n` +
+          `Open the app to view full details.`;
 
-        await Promise.all(optedInUsers.map(user =>
-          base44.asServiceRole.functions.invoke('sendTelegramAlert', {
-            message,
-            target_chat_id: user.telegram_chat_id
-          }).catch(e => console.log('[Telegram] Failed to send to user', user.id, e.message))
-        ));
+        await Promise.all(optedInUsers.map(async (user) => {
+          try {
+            const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: user.telegram_chat_id, text: message, parse_mode: 'HTML' })
+            });
+            const result = await res.json();
+            if (!result.ok) {
+              console.log('[Telegram] Failed for user', user.id, result.description);
+            }
+          } catch (e) {
+            console.log('[Telegram] Error for user', user.id, e.message);
+          }
+        }));
         console.log('[Telegram] Daily briefing sent to', optedInUsers.length, 'users');
       }
     } catch (e) {
       console.log('[Telegram] Failed to send daily briefing:', e.message);
-    }
-
-    // Send daily briefing Telegram summary if enabled
-    try {
-      const allUsers = await base44.asServiceRole.entities.User.list();
-      const enabledUsers = allUsers.filter(u => u.telegram_chat_id && u.telegram_daily_briefing);
-      
-      if (enabledUsers.length > 0) {
-        const emoji = aiResponse.market_posture === 'bullish' ? '🟢' : aiResponse.market_posture === 'bearish' ? '🔴' : '🟡';
-        const summary = `${emoji} <b>AlphaEdge Daily Briefing</b> — ${today}\n\n` +
-          `<b>Market Posture:</b> ${aiResponse.market_posture.toUpperCase()}\n\n` +
-          `<b>Summary:</b> ${aiResponse.narrative?.slice(0, 300) || ''}${(aiResponse.narrative?.length || 0) > 300 ? '...' : ''}\n\n` +
-          `<b>Trade Ideas:</b> ${tradeIdeas.length} high-conviction setups\n` +
-          (tradeIdeas.length > 0 ? tradeIdeas.slice(0, 3).map(t => `• ${t.ticker} ${t.direction.toUpperCase()} (${t.conviction_score}/10)`).join('\n') + '\n' : '') +
-          `\nOpen the app to view full details.`;
-        
-        await Promise.all(enabledUsers.map(user =>
-          base44.asServiceRole.functions.invoke('sendTelegramAlert', { message: summary }).catch(e => {
-            console.log('[Telegram] Failed to send briefing to user:', e.message);
-          })
-        ));
-        console.log('[Telegram] Daily briefing sent to', enabledUsers.length, 'users');
-      }
-    } catch (e) {
-      console.log('[Telegram] Daily briefing error:', e.message);
     }
 
     return Response.json({

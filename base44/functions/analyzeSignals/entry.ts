@@ -302,20 +302,35 @@ REMINDER: Return ONLY the JSON object. No commentary before or after. Empty arra
       // Send Telegram alert for high conviction trades (9+)
       if (trade.conviction_score >= 9) {
         try {
-          const appUrl = 'https://alphaedge.app/trades';
-          const emoji = trade.direction === 'call' ? '📈' : '📉';
-          const convictionBars = '🔥'.repeat(Math.min(trade.conviction_score, 10));
-          
-          await base44.asServiceRole.functions.invoke('sendTelegramAlert', {
-            message: `${emoji} <b>HIGH CONVICTON ALERT</b> ${convictionBars}\n\n` +
+          const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+          if (botToken) {
+            const allUsers = await base44.asServiceRole.entities.User.list();
+            const optedInUsers = allUsers.filter(u => u.telegram_chat_id);
+            const emoji = trade.direction === 'call' ? '📈' : '📉';
+            const convictionBars = '🔥'.repeat(Math.min(trade.conviction_score, 10));
+            const message = `${emoji} <b>HIGH CONVICTION ALERT</b> ${convictionBars}\n\n` +
               `<b>${trade.ticker}</b> ${trade.direction.toUpperCase()}\n` +
               `Strike: $${trade.strike} | Expiry: ${trade.expiry}\n` +
               `Entry: ${trade.entry_range}\n` +
               `Conviction: ${trade.conviction_score}/10\n\n` +
               `<b>Thesis:</b> ${trade.thesis.slice(0, 200)}${trade.thesis.length > 200 ? '...' : ''}\n\n` +
-              `View in app: ${appUrl}`
-          });
-          console.log('[Telegram] Alert sent for', trade.ticker);
+              `Open the app to view full details.`;
+
+            await Promise.all(optedInUsers.map(async (user) => {
+              try {
+                const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ chat_id: user.telegram_chat_id, text: message, parse_mode: 'HTML' })
+                });
+                const result = await res.json();
+                if (!result.ok) console.log('[Telegram] Failed for user', user.id, result.description);
+              } catch (e) {
+                console.log('[Telegram] Error for user', user.id, e.message);
+              }
+            }));
+            console.log('[Telegram] Alert sent for', trade.ticker, 'to', optedInUsers.length, 'users');
+          }
         } catch (e) {
           console.log('[Telegram] Failed to send alert:', e.message);
         }
