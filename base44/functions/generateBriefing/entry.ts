@@ -175,6 +175,82 @@ async function fetchMarketauxNews() {
   }
 }
 
+// Build a performance feedback block from historical closed trade cards
+async function getPerformanceContext(base44) {
+  try {
+    const allTrades = await base44.asServiceRole.entities.TradeCard.list();
+    const closed = allTrades.filter(t => t.outcome_status === 'closed_win' || t.outcome_status === 'closed_loss' || t.outcome_status === 'expired');
+    if (closed.length === 0) return null;
+
+    const total = closed.length;
+    const wins = closed.filter(t => t.outcome_status === 'closed_win').length;
+    const losses = closed.filter(t => t.outcome_status === 'closed_loss').length;
+    const expired = closed.filter(t => t.outcome_status === 'expired').length;
+    const winRate = ((wins / total) * 100).toFixed(1);
+
+    // Win rate by conviction score bucket
+    const byConviction = {};
+    for (const t of closed) {
+      const score = t.conviction_score;
+      if (!score) continue;
+      if (!byConviction[score]) byConviction[score] = { wins: 0, total: 0 };
+      byConviction[score].total++;
+      if (t.outcome_status === 'closed_win') byConviction[score].wins++;
+    }
+    const convictionLines = Object.entries(byConviction)
+      .sort(([a], [b]) => Number(b) - Number(a))
+      .map(([score, d]) => `  Score ${score}: ${d.wins}W / ${d.total - d.wins}L (${((d.wins / d.total) * 100).toFixed(0)}% win rate)`);
+
+    // Win rate by direction
+    const calls = closed.filter(t => t.direction === 'call');
+    const puts = closed.filter(t => t.direction === 'put');
+    const callWinRate = calls.length ? ((calls.filter(t => t.outcome_status === 'closed_win').length / calls.length) * 100).toFixed(0) : 'N/A';
+    const putWinRate = puts.length ? ((puts.filter(t => t.outcome_status === 'closed_win').length / puts.length) * 100).toFixed(0) : 'N/A';
+
+    // Win rate by sector
+    const bySector = {};
+    for (const t of closed) {
+      const s = t.sector || 'Unknown';
+      if (!bySector[s]) bySector[s] = { wins: 0, total: 0 };
+      bySector[s].total++;
+      if (t.outcome_status === 'closed_win') bySector[s].wins++;
+    }
+    const sectorLines = Object.entries(bySector)
+      .filter(([, d]) => d.total >= 2)
+      .map(([sector, d]) => `  ${sector}: ${((d.wins / d.total) * 100).toFixed(0)}% win rate (${d.total} trades)`);
+
+    // Recent losses (last 5) for pattern recognition
+    const recentLosses = closed
+      .filter(t => t.outcome_status === 'closed_loss' || t.outcome_status === 'expired')
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5)
+      .map(t => `  ${t.date} | ${t.ticker} ${t.direction?.toUpperCase()} | Score ${t.conviction_score} | ${t.pnl_notes || 'no notes'}`);
+
+    return `=== YOUR HISTORICAL PERFORMANCE (use this to self-calibrate) ===
+Overall: ${wins}W / ${losses}L / ${expired} expired — ${winRate}% win rate across ${total} closed trades
+Calls: ${callWinRate}% win rate | Puts: ${putWinRate}% win rate
+
+Win Rate by Conviction Score:
+${convictionLines.join('\n') || '  Insufficient data'}
+
+Win Rate by Sector:
+${sectorLines.join('\n') || '  Insufficient data'}
+
+Recent Losses (learn from these):
+${recentLosses.join('\n') || '  None'}
+
+SELF-CALIBRATION RULES (mandatory):
+- If your conviction 8 trades have <50% win rate historically, be MORE selective — raise the bar to 9+ for new ideas
+- If calls are underperforming puts, scrutinize bullish setups more carefully
+- If a sector has <40% win rate, require stronger multi-source confirmation before including it
+- Reference your past losses above: are there patterns (wrong expiry, wrong direction, single-source signals)? Avoid repeating them
+===================================================================`;
+  } catch (e) {
+    console.log('[Performance] Failed to load context:', e.message);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -210,13 +286,14 @@ Deno.serve(async (req) => {
 
     const allTwitterHandles = [...new Set([...DEFAULT_TWITTER_ACCOUNTS, ...dbTwitterHandles])];
 
-    // Parallel data collection from all sources
-    const [unusualWhalesData, quiverData, twitterData, substackData, newsData] = await Promise.all([
+    // Parallel data collection from all sources + historical performance context
+    const [unusualWhalesData, quiverData, twitterData, substackData, newsData, perfContext] = await Promise.all([
       fetchUnusualWhales(),
       fetchQuiverQuant(),
       fetchTwitterPosts(allTwitterHandles),
       fetchSubstackFeeds(),
-      fetchMarketauxNews()
+      fetchMarketauxNews(),
+      getPerformanceContext(base44)
     ]);
 
     const rawData = {
@@ -232,6 +309,8 @@ Deno.serve(async (req) => {
     const analysisPrompt = `You are AlphaEdge, an elite options trading intelligence system for a retail trader with a <$50K account.
 
 Today's date: ${today}
+
+${perfContext || '(No historical trade data yet — this is early in your learning cycle)'}
 
 LIVE DATA COLLECTED:
 --- Unusual Whales Options Flow (${unusualWhalesData.success ? 'LIVE' : 'unavailable'}):

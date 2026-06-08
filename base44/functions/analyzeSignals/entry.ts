@@ -1,5 +1,62 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+// Build a performance feedback block from historical closed trade cards
+async function getPerformanceContext(base44) {
+  try {
+    const allTrades = await base44.asServiceRole.entities.TradeCard.list();
+    const closed = allTrades.filter(t => t.outcome_status === 'closed_win' || t.outcome_status === 'closed_loss' || t.outcome_status === 'expired');
+    if (closed.length === 0) return null;
+
+    const total = closed.length;
+    const wins = closed.filter(t => t.outcome_status === 'closed_win').length;
+    const losses = closed.filter(t => t.outcome_status === 'closed_loss').length;
+    const expired = closed.filter(t => t.outcome_status === 'expired').length;
+    const winRate = ((wins / total) * 100).toFixed(1);
+
+    const byConviction = {};
+    for (const t of closed) {
+      const score = t.conviction_score;
+      if (!score) continue;
+      if (!byConviction[score]) byConviction[score] = { wins: 0, total: 0 };
+      byConviction[score].total++;
+      if (t.outcome_status === 'closed_win') byConviction[score].wins++;
+    }
+    const convictionLines = Object.entries(byConviction)
+      .sort(([a], [b]) => Number(b) - Number(a))
+      .map(([score, d]) => `  Score ${score}: ${d.wins}W / ${d.total - d.wins}L (${((d.wins / d.total) * 100).toFixed(0)}% win rate)`);
+
+    const calls = closed.filter(t => t.direction === 'call');
+    const puts = closed.filter(t => t.direction === 'put');
+    const callWinRate = calls.length ? ((calls.filter(t => t.outcome_status === 'closed_win').length / calls.length) * 100).toFixed(0) : 'N/A';
+    const putWinRate = puts.length ? ((puts.filter(t => t.outcome_status === 'closed_win').length / puts.length) * 100).toFixed(0) : 'N/A';
+
+    const recentLosses = closed
+      .filter(t => t.outcome_status === 'closed_loss' || t.outcome_status === 'expired')
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5)
+      .map(t => `  ${t.date} | ${t.ticker} ${t.direction?.toUpperCase()} | Score ${t.conviction_score} | ${t.pnl_notes || 'no notes'}`);
+
+    return `=== YOUR HISTORICAL PERFORMANCE (use this to self-calibrate) ===
+Overall: ${wins}W / ${losses}L / ${expired} expired — ${winRate}% win rate across ${total} closed trades
+Calls: ${callWinRate}% win rate | Puts: ${putWinRate}% win rate
+
+Win Rate by Conviction Score:
+${convictionLines.join('\n') || '  Insufficient data'}
+
+Recent Losses (learn from these):
+${recentLosses.join('\n') || '  None'}
+
+SELF-CALIBRATION RULES (mandatory):
+- If your conviction 8 trades have <50% win rate historically, be MORE selective — raise the bar to 9+ for new ideas
+- If calls are underperforming puts, scrutinize bullish setups more carefully
+- Reference your past losses: are there patterns? Avoid repeating them
+===================================================================`;
+  } catch (e) {
+    console.log('[Performance] Failed to load context:', e.message);
+    return null;
+  }
+}
+
 // Fetch real-time quote + key stats from Alpha Vantage for a ticker
 async function fetchQuote(ticker) {
   const apiKey = Deno.env.get("ALPHA_VANTAGE_API_KEY");
@@ -63,7 +120,10 @@ Deno.serve(async (req) => {
       .filter(t => LIQUID_TICKERS.includes(t))
       .slice(0, 8);
 
-    const quoteResults = await Promise.all(tickersToFetch.map(t => fetchQuote(t)));
+    const [quoteResults, perfContext] = await Promise.all([
+      Promise.all(tickersToFetch.map(t => fetchQuote(t))),
+      getPerformanceContext(base44)
+    ]);
     const liveQuotes = quoteResults.filter(Boolean);
     const quotesBlock = liveQuotes.length > 0
       ? liveQuotes.map(q =>
@@ -74,6 +134,8 @@ Deno.serve(async (req) => {
     const prompt = `You are AlphaEdge, an elite options trading intelligence system. Your ONLY job is to surface the highest-conviction, most actionable options setups for a retail trader with a sub-$50K account. Be ruthlessly selective.
 
 Current time: ${new Date().toISOString()}
+
+${perfContext || '(No historical trade data yet — this is early in your learning cycle)'}
 
 === LIVE MARKET QUOTES (Alpha Vantage — use these for accurate strike/entry calculations) ===
 ${quotesBlock}
