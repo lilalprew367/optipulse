@@ -1,7 +1,8 @@
-// Improved Grok Agent Chat Component with xAI API integration stub
+// Updated GrokAgentChat with real API integration
 import React, { useState } from 'react';
+import { callGrok } from '../lib/grokApi';
 
-export default function GrokAgentChat({ ticker = '', onThesisGenerated }) {
+export default function GrokAgentChat({ ticker, signalData, onThesisGenerated }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -9,51 +10,39 @@ export default function GrokAgentChat({ ticker = '', onThesisGenerated }) {
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    const userMessage = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
+    const userMsg = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
 
     try {
-      // TODO: Replace with real xAI Grok API call
-      // const response = await fetch('https://api.x.ai/v1/chat/completions', {
-      //   method: 'POST',
-      //   headers: { 'Authorization': `Bearer ${GROK_API_KEY}`, 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ model: 'grok-beta', messages: [...messages, userMessage] })
-      // });
-
-      // Simulate for now + real integration later
-      const simulatedResponse = `Grok Analysis for ${ticker || 'market'}: High conviction options play detected with strong flow. R:R 1:4. Recommend long calls.`;
-      const assistantMessage = { role: 'assistant', content: simulatedResponse };
-      setMessages(prev => [...prev, assistantMessage]);
-
-      if (onThesisGenerated) onThesisGenerated(simulatedResponse);
-    } catch (error) {
-      console.error('Grok API error:', error);
+      const context = { ticker, signalData };
+      const grokResponse = await callGrok(input, context);
+      const assistantMsg = { role: 'assistant', content: grokResponse };
+      setMessages(prev => [...prev, assistantMsg]);
+      if (onThesisGenerated) onThesisGenerated(grokResponse);
+    } catch (e) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Error contacting Grok.' }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="border rounded-lg p-4 h-96 flex flex-col">
-      <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-        {messages.map((msg, i) => (
-          <div key={i} className={`p-3 rounded ${msg.role === 'user' ? 'bg-blue-600 ml-auto' : 'bg-gray-700'}`}>
-            {msg.content}
+    <div className="h-[500px] flex flex-col border border-gray-700 rounded-xl overflow-hidden bg-gray-950">
+      <div className="p-4 border-b bg-gray-900">Grok Trading Analyst</div>
+      <div className="flex-1 p-4 overflow-y-auto space-y-4">
+        {messages.length === 0 && <p className="text-gray-400 text-center">Ask Grok about any ticker or signal...</p>}
+        {messages.map((m, i) => (
+          <div key={i} className={`max-w-[80%] p-3 rounded-2xl ${m.role === 'user' ? 'ml-auto bg-blue-600' : 'bg-zinc-800'}`}>
+            {m.content}
           </div>
         ))}
-        {isLoading && <div>Thinking with Grok...</div>}
+        {isLoading && <div className="text-green-400">Grok thinking...</div>}
       </div>
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-          className="flex-1 bg-gray-800 p-3 rounded"
-          placeholder="Ask Grok: Analyze AAPL flow..."
-        />
-        <button onClick={sendMessage} disabled={isLoading} className="bg-green-600 px-6 py-2 rounded">Send</button>
+      <div className="p-4 border-t bg-gray-900 flex gap-2">
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendMessage()} placeholder="E.g. Analyze this options flow for NVDA" className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3" />
+        <button onClick={sendMessage} disabled={isLoading} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-3 rounded-lg font-medium">Ask Grok</button>
       </div>
     </div>
   );
