@@ -36,6 +36,8 @@ export default function TradeCardComponent({ trade, onUpdate }) {
   const [pnlNotes, setPnlNotes] = useState(trade.pnl_notes || '');
   const [pnlAmount, setPnlAmount] = useState(trade.pnl_amount || '');
   const [saving, setSaving] = useState(false);
+  const [executing, setExecuting] = useState(false);
+  const [executed, setExecuted] = useState(false);
 
   const isHighConviction = trade.conviction_score >= 9;
   const isCall = trade.direction === 'call';
@@ -50,6 +52,35 @@ export default function TradeCardComponent({ trade, onUpdate }) {
     setSaving(false);
     setOutcomeDialog(false);
     onUpdate && onUpdate();
+  }
+
+  async function executeOnAlpaca() {
+    setExecuting(true);
+    try {
+      const res = await base44.functions.invoke('placeAlpacaOrder', {
+        ticker: trade.ticker,
+        side: 'buy',
+        qty: 10,
+        type: 'market',
+      });
+      if (res.data.error) {
+        await base44.entities.TradeCard.update(trade.id, {
+          outcome_status: 'entered',
+          pnl_notes: `Manual execute failed: ${res.data.error}`,
+        });
+      } else {
+        await base44.entities.TradeCard.update(trade.id, {
+          outcome_status: 'entered',
+          pnl_notes: `Executed: BUY 10 ${trade.ticker} @ market. Order: ${res.data.id}`,
+        });
+        setExecuted(true);
+      }
+    } catch (e) {
+      // silent
+    } finally {
+      setExecuting(false);
+      onUpdate && onUpdate();
+    }
   }
 
   return (
@@ -188,6 +219,16 @@ export default function TradeCardComponent({ trade, onUpdate }) {
                 onClick={() => setOutcomeDialog(true)}>
                 Track Outcome
               </Button>
+              {trade.outcome_status === 'open' && trade.direction === 'call' && (
+                <Button
+                  size="sm"
+                  className="text-xs font-mono bg-bullish hover:bg-bullish/80"
+                  onClick={executeOnAlpaca}
+                  disabled={executing || executed}
+                >
+                  {executing ? 'Sending...' : executed ? 'Executed' : 'Execute on Alpaca'}
+                </Button>
+              )}
             </div>
           </div>
         )}
