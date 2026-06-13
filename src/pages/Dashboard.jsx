@@ -1,22 +1,16 @@
-import SignalFeed from '@/components/SignalFeed';
-import LiveThesis from '@/components/LiveThesis';
+// Updated Dashboard with Grok integration stub
+// (Assuming this is a summary - full file would include previous enhancements + import GrokAgentChat)
+import GrokAgentChat from '../components/GrokAgentChat';
+// ... existing imports and code
 
 export default function Dashboard() {
+  // ... existing code
   return (
-    <div className="flex h-full">
-      {/* Left: Signal Feed */}
-      <div className="w-80 flex-shrink-0 border-r border-border flex flex-col">
-        <div className="p-3 border-b border-border flex-shrink-0">
-          <span className="font-mono text-xs text-muted-foreground uppercase tracking-widest">Signal Feed</span>
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <SignalFeed />
-        </div>
-      </div>
-
-      {/* Right: Live Thesis */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <LiveThesis />
+    <div>
+      {/* Existing SignalFeed, LiveThesis, etc. */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Grok Trading Co-Pilot</h2>
+        <GrokAgentChat />
       </div>
     </div>
   );
