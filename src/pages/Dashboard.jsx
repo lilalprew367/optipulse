@@ -5,11 +5,19 @@ import GrokAgentChat from '../components/GrokAgentChat';
 import CompactSignalFeed from '../components/CompactSignalFeed';
 import LiveThesis from '../components/LiveThesis';
 import AlertBell from '../components/AlertBell';
+import AlpacaDashboard from '../components/AlpacaDashboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, Zap, BarChart2, Newspaper } from 'lucide-react';
+import { TrendingUp, Zap, BarChart2, Newspaper, Radio, Landmark } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const TABS = [
+  { key: 'signals', label: 'Signals', icon: Radio },
+  { key: 'alpaca', label: 'Alpaca', icon: Landmark },
+];
 
 export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState('signals');
   const { data: alerts, isLoading: alertsLoading } = useQuery({
     queryKey: ['alerts-count'],
     queryFn: () => base44.entities.Alert.filter({ is_read: false }),
@@ -48,6 +56,25 @@ export default function Dashboard() {
         <AlertBell />
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border pb-0">
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2.5 text-sm font-mono font-medium rounded-t-lg transition-colors",
+              activeTab === tab.key
+                ? "bg-card text-primary border-b-2 border-primary -mb-[2px]"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
@@ -70,84 +97,86 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Left: Signal Feed */}
-        <div className="xl:col-span-2 space-y-6">
-          <CompactSignalFeed
-            title="Signals Today"
-            signals={signals}
-            loading={signalsLoading}
-            onSelect={(signal) => console.log('Selected:', signal)}
-          />
+      {/* Tab Content */}
+      {activeTab === 'signals' ? (
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Left: Signal Feed */}
+          <div className="xl:col-span-2 space-y-6">
+            <CompactSignalFeed
+              title="Signals Today"
+              signals={signals}
+              loading={signalsLoading}
+              onSelect={(signal) => console.log('Selected:', signal)}
+            />
 
-          {/* Active Trade Ideas */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-mono text-lg">Active Trade Ideas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {tradesLoading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-20 w-full rounded-lg" />
-                  <Skeleton className="h-20 w-full rounded-lg" />
-                </div>
-              ) : trades?.length === 0 ? (
-                <p className="text-muted-foreground text-center py-6 text-sm">No open trade ideas. Run a briefing to generate some.</p>
-              ) : (
-                <div className="space-y-3">
-                  {trades?.map(trade => (
-                    <div key={trade.id} className="border border-border rounded-lg p-3 hover:border-primary/20 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-foreground">{trade.ticker}</span>
-                          <span className={`text-xs font-mono uppercase ${trade.direction === 'call' ? 'text-bullish' : 'text-bearish'}`}>
-                            {trade.direction}
-                          </span>
-                          {trade.conviction_score >= 9 && (
-                            <span className="text-yellow-400 text-xs flex items-center gap-0.5">
-                              <Zap className="w-3 h-3" /> HOT
+            {/* Active Trade Ideas */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-mono text-lg">Active Trade Ideas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {tradesLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-20 w-full rounded-lg" />
+                    <Skeleton className="h-20 w-full rounded-lg" />
+                  </div>
+                ) : trades?.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-6 text-sm">No open trade ideas. Run a briefing to generate some.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {trades?.map(trade => (
+                      <div key={trade.id} className="border border-border rounded-lg p-3 hover:border-primary/20 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-foreground">{trade.ticker}</span>
+                            <span className={`text-xs font-mono uppercase ${trade.direction === 'call' ? 'text-bullish' : 'text-bearish'}`}>
+                              {trade.direction}
                             </span>
-                          )}
+                            {trade.conviction_score >= 9 && (
+                              <span className="text-yellow-400 text-xs flex items-center gap-0.5">
+                                <Zap className="w-3 h-3" /> HOT
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-mono text-sm text-muted-foreground">
+                            {trade.conviction_score}/10
+                          </span>
                         </div>
-                        <span className="font-mono text-sm text-muted-foreground">
-                          {trade.conviction_score}/10
-                        </span>
+                        {trade.thesis && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{trade.thesis}</p>
+                        )}
                       </div>
-                      {trade.thesis && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{trade.thesis}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Right: Briefing + Grok */}
-        <div className="space-y-6">
-          {/* Latest Briefing */}
-          <Card className="border-primary/20">
-            <CardHeader>
-              <CardTitle className="font-mono text-lg">Today's Briefing</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {briefing ? (
-                <LiveThesis briefing={briefing} />
-              ) : (
-                <p className="text-muted-foreground text-sm text-center py-6">No briefing yet. Trigger one from the backoffice.</p>
-              )}
-            </CardContent>
-          </Card>
+          {/* Right: Briefing + Grok */}
+          <div className="space-y-6">
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="font-mono text-lg">Today's Briefing</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {briefing ? (
+                  <LiveThesis briefing={briefing} />
+                ) : (
+                  <p className="text-muted-foreground text-sm text-center py-6">No briefing yet. Trigger one from the backoffice.</p>
+                )}
+              </CardContent>
+            </Card>
 
-          {/* Grok Co-Pilot */}
-          <div>
-            <h2 className="text-lg font-mono font-bold mb-3 text-foreground">Grok Trading Co-Pilot</h2>
-            <GrokAgentChat />
+            <div>
+              <h2 className="text-lg font-mono font-bold mb-3 text-foreground">Grok Trading Co-Pilot</h2>
+              <GrokAgentChat />
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <AlpacaDashboard />
+      )}
     </div>
   );
 }
