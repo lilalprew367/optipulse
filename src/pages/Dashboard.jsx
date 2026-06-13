@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import GrokAgentChat from '../components/GrokAgentChat';
-import SignalFeed from '../components/SignalFeed';
+import CompactSignalFeed from '../components/CompactSignalFeed';
 import LiveThesis from '../components/LiveThesis';
 import AlertBell from '../components/AlertBell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,7 +74,12 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left: Signal Feed */}
         <div className="xl:col-span-2 space-y-6">
-          <SignalFeed signals={signals} loading={signalsLoading} />
+          <CompactSignalFeed
+            title="Signals Today"
+            signals={signals}
+            loading={signalsLoading}
+            onSelect={(signal) => console.log('Selected:', signal)}
+          />
 
           {/* Active Trade Ideas */}
           <Card>
