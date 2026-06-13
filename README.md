@@ -1,39 +1,27 @@
-**Welcome to your Base44 project** 
+## OptiPulse
 
-**About**
+**AI-Powered Daily Options & Stock Trading Intelligence Platform**
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+OptiPulse surfaces the **best high-conviction trades** every day by aggregating unusual options flow, Quiver Quant political/smart money signals, TradingView ideas, social sentiment, and more.
 
-This project contains everything you need to run your app locally.
+### Key Features
+- Live Unusual Whales Options Flow
+- Quiver Quant + Political Trade Signals
+- AI-Powered Trade Thesis (Grok integration coming)
+- Performance Tracking & Backtesting
+- Real-time Alerts & Risk/Reward Calculator
+- Dashboard with SignalFeed + LiveThesis
 
-**Edit the code in your local development environment**
+### Tech Stack
+- React + Vite + Tailwind + shadcn/ui
+- Base44 backend
+- Tanstack Query
+- Unusual Whales API, Quiver Quant API, TradingView
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+### Setup
+1. Clone the repo
+2. `npm install`
+3. Add API keys in Base44 settings or .env
+4. `npm run dev`
 
-**Prerequisites:** 
-
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
-
-```
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
-
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
-```
-
-Run the app: `npm run dev`
-
-**Publish your changes**
-
-Open [Base44.com](http://Base44.com) and click on Publish.
-
-**Docs & Support**
-
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
-
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+Built to help you find edge in options trading.
