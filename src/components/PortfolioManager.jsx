@@ -23,7 +23,10 @@ export default function PortfolioManager() {
       const res = await base44.functions.invoke('getAlpacaPortfolio', {});
       setPortfolio(res.data);
     } catch (e) {
-      setError('Failed to load portfolio. Check your Alpaca API keys.');
+      const msg = e?.response?.status === 401
+        ? 'Please log in to view your portfolio.'
+        : 'Failed to load portfolio. Check your Alpaca API keys.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
