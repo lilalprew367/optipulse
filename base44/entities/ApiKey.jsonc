@@ -1,0 +1,22 @@
+{
+  "name": "ApiKey",
+  "type": "object",
+  "properties": {
+    "service": {
+      "type": "string",
+      "description": "Service name (e.g. alpaca, xai)"
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key value"
+    },
+    "secret_key": {
+      "type": "string",
+      "description": "Secret key value"
+    }
+  },
+  "required": [
+    "service",
+    "api_key"
+  ]
+}
