@@ -2,6 +2,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const ALPACA_BASE = 'https://paper-api.alpaca.markets';
 
+async function getAlpacaKeys(base44) {
+  const keys = await base44.asServiceRole.entities.ApiKey.filter({ service: 'alpaca' });
+  if (!keys?.length) return null;
+  return { apiKey: keys[0].api_key, secretKey: keys[0].secret_key };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -12,13 +18,15 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'ticker, side, and qty are required' }, { status: 400 });
     }
 
-    const apiKey = Deno.env.get('ALPACA_API_KEY');
-    const secretKey = Deno.env.get('ALPACA_SECRET_KEY');
+    const keys = await getAlpacaKeys(base44);
+    if (!keys) {
+      return Response.json({ error: 'Alpaca API keys not configured', needs_keys: true }, { status: 400 });
+    }
 
     const body = {
       symbol: ticker.toUpperCase(),
       qty: String(qty),
-      side: side, // 'buy' or 'sell'
+      side: side,
       type: type || 'market',
       time_in_force: time_in_force || 'day',
     };
@@ -30,8 +38,8 @@ Deno.serve(async (req) => {
     const res = await fetch(`${ALPACA_BASE}/v2/orders`, {
       method: 'POST',
       headers: {
-        'APCA-API-KEY-ID': apiKey,
-        'APCA-API-SECRET-KEY': secretKey,
+        'APCA-API-KEY-ID': keys.apiKey,
+        'APCA-API-SECRET-KEY': keys.secretKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),

@@ -23,7 +23,13 @@ export default function PortfolioManager() {
       const res = await base44.functions.invoke('getAlpacaPortfolio', {});
       setPortfolio(res.data);
     } catch (e) {
-      setError('Failed to load portfolio. Check your Alpaca API keys.');
+      if (e?.response?.data?.needs_keys) {
+        setError('Add your Alpaca API keys above.');
+      } else if (e?.response?.status === 401 || e?.response?.data?.error?.includes('Invalid')) {
+        setError('Invalid Alpaca keys. Update them above.');
+      } else {
+        setError('Failed to load portfolio. Add your Alpaca API keys above.');
+      }
     } finally {
       setLoading(false);
     }

@@ -4,17 +4,18 @@ const ALPACA_BASE = 'https://paper-api.alpaca.markets';
 const MIN_CONVICTION = 9;
 const DEFAULT_QTY = 10;
 
+async function getAlpacaKeys(base44) {
+  const keys = await base44.asServiceRole.entities.ApiKey.filter({ service: 'alpaca' });
+  if (!keys?.length) return null;
+  return { apiKey: keys[0].api_key, secretKey: keys[0].secret_key };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user || user.role !== 'admin') {
-      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
-    }
 
     const { event, data } = await req.json();
 
-    // Only auto-execute on create events
     if (event.type !== 'create') {
       return Response.json({ message: 'Skipped — not a create event' });
     }
@@ -22,12 +23,10 @@ Deno.serve(async (req) => {
     const trade = data;
     const conviction = trade.conviction_score || 0;
 
-    // Only execute high-conviction trades
     if (conviction < MIN_CONVICTION) {
       return Response.json({ message: `Skipped — conviction ${conviction} below threshold ${MIN_CONVICTION}` });
     }
 
-    // Don't auto-execute options
     if (trade.direction === 'put') {
       return Response.json({ message: 'Skipped — options require manual execution' });
     }
@@ -37,15 +36,16 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'No ticker specified' }, { status: 400 });
     }
 
-    const apiKey = Deno.env.get('ALPACA_API_KEY');
-    const secretKey = Deno.env.get('ALPACA_SECRET_KEY');
+    const keys = await getAlpacaKeys(base44);
+    if (!keys) {
+      return Response.json({ error: 'Alpaca API keys not configured' }, { status: 400 });
+    }
 
-    // Place market buy order
     const orderRes = await fetch(`${ALPACA_BASE}/v2/orders`, {
       method: 'POST',
       headers: {
-        'APCA-API-KEY-ID': apiKey,
-        'APCA-API-SECRET-KEY': secretKey,
+        'APCA-API-KEY-ID': keys.apiKey,
+        'APCA-API-SECRET-KEY': keys.secretKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -60,14 +60,12 @@ Deno.serve(async (req) => {
     const orderData = await orderRes.json();
 
     if (!orderRes.ok) {
-      // Update trade card with failure note
       await base44.asServiceRole.entities.TradeCard.update(trade.id, {
         pnl_notes: `Auto-execute failed: ${orderData.message}`,
       });
       return Response.json({ error: orderData.message }, { status: orderRes.status });
     }
 
-    // Update trade card outcome
     await base44.asServiceRole.entities.TradeCard.update(trade.id, {
       outcome_status: 'entered',
       pnl_notes: `Auto-executed: BUY ${DEFAULT_QTY} ${ticker.toUpperCase()} @ market. Order ID: ${orderData.id}`,

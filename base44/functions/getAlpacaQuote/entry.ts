@@ -2,6 +2,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const ALPACA_DATA = 'https://data.alpaca.markets';
 
+async function getAlpacaKeys(base44) {
+  const keys = await base44.asServiceRole.entities.ApiKey.filter({ service: 'alpaca' });
+  if (!keys?.length) return null;
+  return { apiKey: keys[0].api_key, secretKey: keys[0].secret_key };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -10,12 +16,14 @@ Deno.serve(async (req) => {
 
     if (!ticker) return Response.json({ error: 'ticker is required' }, { status: 400 });
 
-    const apiKey = Deno.env.get('ALPACA_API_KEY');
-    const secretKey = Deno.env.get('ALPACA_SECRET_KEY');
+    const keys = await getAlpacaKeys(base44);
+    if (!keys) {
+      return Response.json({ error: 'Alpaca API keys not configured', needs_keys: true }, { status: 400 });
+    }
 
     const headers = {
-      'APCA-API-KEY-ID': apiKey,
-      'APCA-API-SECRET-KEY': secretKey,
+      'APCA-API-KEY-ID': keys.apiKey,
+      'APCA-API-SECRET-KEY': keys.secretKey,
       'Accept': 'application/json',
     };
 
@@ -29,7 +37,6 @@ Deno.serve(async (req) => {
       return Response.json({ ticker: ticker.toUpperCase(), bars: data.bars || [] });
     }
 
-    // Default: latest quote
     const res = await fetch(
       `${ALPACA_DATA}/v2/stocks/${ticker.toUpperCase()}/quotes/latest`,
       { headers }

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import PortfolioManager from './PortfolioManager';
+import AlpacaKeySetup from './AlpacaKeySetup.jsx';
 import { TrendingUp, TrendingDown, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -85,9 +86,12 @@ function AutomatedTradesFeed() {
 }
 
 export default function AlpacaDashboard() {
+  const [refreshKey, setRefreshKey] = useState(0);
+
   return (
     <div className="space-y-6">
-      <PortfolioManager />
+      <AlpacaKeySetup onKeysSet={() => setRefreshKey(k => k + 1)} />
+      <PortfolioManager key={refreshKey} />
       <AutomatedTradesFeed />
     </div>
   );
