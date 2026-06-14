@@ -5,8 +5,6 @@ const ALPACA_BASE = 'https://paper-api.alpaca.markets';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const apiKey = Deno.env.get('ALPACA_API_KEY');
     const secretKey = Deno.env.get('ALPACA_SECRET_KEY');

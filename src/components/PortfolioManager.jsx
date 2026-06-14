@@ -6,13 +6,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { base44 } from '@/api/base44Client';
 import GrokAgentChat from './GrokAgentChat';
-import { TrendingUp, TrendingDown, RefreshCw, Zap, DollarSign, LogIn } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Zap, DollarSign } from 'lucide-react';
 
 export default function PortfolioManager() {
   const [portfolio, setPortfolio] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAuthError, setIsAuthError] = useState(false);
   const [orderForm, setOrderForm] = useState({ ticker: '', qty: '', side: 'buy', type: 'market', limit: '' });
   const [placing, setPlacing] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
@@ -24,12 +23,7 @@ export default function PortfolioManager() {
       const res = await base44.functions.invoke('getAlpacaPortfolio', {});
       setPortfolio(res.data);
     } catch (e) {
-      const is401 = e?.response?.status === 401;
-      setIsAuthError(is401);
-      const msg = is401
-        ? 'Please log in to view your portfolio.'
-        : 'Failed to load portfolio. Check your Alpaca API keys.';
-      setError(msg);
+      setError('Failed to load portfolio. Check your Alpaca API keys.');
     } finally {
       setLoading(false);
     }
@@ -79,16 +73,9 @@ export default function PortfolioManager() {
       <Card className="border-destructive/30">
         <CardContent className="p-6 text-center space-y-3">
           <p className="text-destructive">{error}</p>
-          <div className="flex items-center justify-center gap-3">
-            <Button onClick={fetchPortfolio} variant="outline" size="sm">
-              <RefreshCw className="w-4 h-4 mr-2" /> Retry
-            </Button>
-            {isAuthError && (
-              <Button onClick={() => base44.auth.redirectToLogin()} size="sm" className="bg-primary">
-                <LogIn className="w-4 h-4 mr-2" /> Log In
-              </Button>
-            )}
-          </div>
+          <Button onClick={fetchPortfolio} variant="outline" size="sm">
+            <RefreshCw className="w-4 h-4 mr-2" /> Retry
+          </Button>
         </CardContent>
       </Card>
     );

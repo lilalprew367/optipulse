@@ -5,8 +5,6 @@ const ALPACA_DATA = 'https://data.alpaca.markets';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { ticker, type } = await req.json();
 
