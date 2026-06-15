@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,25 +16,32 @@ export default function PortfolioManager() {
   const [placing, setPlacing] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
 
-  const fetchPortfolio = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const mountedRef = useRef(true);
+  const hasDataRef = useRef(false);
+  useEffect(() => { return () => { mountedRef.current = false; }; }, []);
+
+  const fetchPortfolio = useCallback(async (attempt = 0) => {
+    if (!mountedRef.current) return;
+    if (attempt === 0) setLoading(true);
     try {
       const res = await base44.functions.invoke('getAlpacaPortfolio', {});
       if (res.data?.error) {
-        setError(res.data.error);
+        if (!hasDataRef.current) setError(res.data.error);
       } else {
         setPortfolio(res.data);
+        setError(null);
+        hasDataRef.current = true;
       }
+      setLoading(false);
     } catch (e) {
-      const status = e?.response?.status;
-      if (status === 401 || status === 403) {
-        setError('Invalid Alpaca keys. Please verify and update them above.');
-      } else {
+      if (attempt < 2) {
+        setTimeout(() => fetchPortfolio(attempt + 1), 2000);
+        return;
+      }
+      setLoading(false);
+      if (!hasDataRef.current) {
         setError('Could not connect to Alpaca. Check your connection and try again.');
       }
-    } finally {
-      setLoading(false);
     }
   }, []);
 
