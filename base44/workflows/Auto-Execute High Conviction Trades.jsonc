@@ -1,0 +1,37 @@
+{
+  "name": "Auto-Execute High Conviction Trades",
+  "description": "",
+  "trigger": {
+    "condition": "${ ((.trigger.data.conviction_score >= 9) and (.trigger.data.direction == \"call\")) }",
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create"
+      ],
+      "entity_name": "TradeCard"
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "auto_execute_high_conviction_trades",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "autoExecuteTrade",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "autoExecuteTrade"
+  }
+}
